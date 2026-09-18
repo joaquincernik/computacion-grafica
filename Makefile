@@ -23,7 +23,8 @@ INC_DIRS = \
 #LIB_DIRS = \
 #    ./src/input
 LIB_DIRS = \
-    $(GLAD_LIB_DIRS)
+    $(GLAD_LIB_DIRS) \
+    ./src/ResourceManager
 
 # ------------------------------------------------------------------------------
 # Dir del main de la aplicación y nombre del archivo de código fuente
