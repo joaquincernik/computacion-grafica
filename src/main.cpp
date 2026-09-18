@@ -5,6 +5,7 @@
 #include <sstream>
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
+#include "ResourceManager/ResourceManager.h"
 
 static const char *kWindowTitle = "OpenGL template project";
 static constexpr int kWindowWidth = 800;
@@ -23,7 +24,7 @@ static void print_gl_version(void);
 
 // a dibujar ese triangulo chad
 // Función para leer archivos de texto (shaders) desde el disco
-static std::string loadShaderSource(const char *filePath)
+/*static std::string loadShaderSource(const char *filePath)
 {
 	std::ifstream file;
 	std::stringstream stream;
@@ -42,6 +43,7 @@ static std::string loadShaderSource(const char *filePath)
 	}
 	return stream.str();
 }
+	*/
 int main()
 {
 
@@ -112,11 +114,28 @@ int main()
 	//-==================== Aca empiezo ==================
 	// SHADERS ---------------------
 	// Leemos los archivos
-	std::string vertCode = loadShaderSource("shaders/shader.vert");
+	/*std::string vertCode = loadShaderSource("shaders/shader.vert");
 	std::string fragCode = loadShaderSource("shaders/shader.frag");
 
 	const char *vertexShaderSource = vertCode.c_str();
 	const char *fragmentShaderSource = fragCode.c_str();
+*/
+	// Leemos los archivos a traves del ResourceManager
+	ResourceManager resource_manager("shaders"); // assets_root =  "shaders/"
+
+	const ShaderSource &shader =
+		resource_manager.load_shader_source("triangulo", "shader.vert", "shader.frag");
+
+	const char *vertexShaderSource = shader.vs.c_str();
+	const char *fragmentShaderSource = shader.fs.c_str();
+	// por si hau error leyendo
+	if (shader.vs.empty() || shader.fs.empty())
+	{
+		std::cerr << "ERROR::SHADER::SOURCES_INCOMPLETOS" << std::endl;
+		glfwDestroyWindow(window);
+		glfwTerminate();
+		return EXIT_FAILURE;
+	}
 
 	// Compilar Vertex Shader
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -162,7 +181,6 @@ int main()
 
 	glEnableVertexArrayAttrib(vao, 0); // arranca apagado, hay que prenderlo
 
-
 	while (!glfwWindowShouldClose(window))
 	{
 		// input
@@ -172,7 +190,7 @@ int main()
 		glClearColor(51.0f / 256, 55.0f / 256, 76.0f / 256, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		//dibujamods
+		// dibujamods
 		glUseProgram(shaderProgram);
 		glBindVertexArray(vao);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
