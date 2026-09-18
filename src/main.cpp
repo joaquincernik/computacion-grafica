@@ -1,13 +1,15 @@
 #include <cstdlib> // EXIT_FAILURE, EXIT_SUCCESS
 #include <iostream>
 #include <string>
-#include <fstream>
-#include <sstream>
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
-#include "ResourceManager/ResourceManager.h"
 
-static const char *kWindowTitle = "OpenGL template project";
+#include "ResourceManager/ResourceManager.h"
+#include "Mesh/Mesh.h"
+#include "Primitives/Primitives.h"
+#include "Shader/Shader.h"
+
+static const char *kWindowTitle = "OpenGL - Primitiva Cubo";
 static constexpr int kWindowWidth = 800;
 static constexpr int kWindowHeight = 600;
 static constexpr int kGLVerMajor = 4;
@@ -17,46 +19,19 @@ static int glfw_error_code{};
 static std::string glfw_error_str{};
 
 static void error_callback(int error, const char *description);
-static void framebuffer_size_callback(GLFWwindow *window,
-									  int width, int height);
+static void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 static void processInput(GLFWwindow *window);
 static void print_gl_version(void);
 
-// a dibujar ese triangulo chad
-// Función para leer archivos de texto (shaders) desde el disco
-/*static std::string loadShaderSource(const char *filePath)
-{
-	std::ifstream file;
-	std::stringstream stream;
-
-	file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-	try
-	{
-		file.open(filePath);
-		stream << file.rdbuf();
-		file.close();
-	}
-	catch (std::ifstream::failure &e)
-	{
-		std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ: " << filePath << std::endl;
-		return "";
-	}
-	return stream.str();
-}
-	*/
 int main()
 {
-
-	// Set error callback before initialization so we can be notified
+	// Registrar callback de errores antes de la inicialización
 	glfwSetErrorCallback(error_callback);
 
-	// Init GLFW
+	// 1. Inicializar GLFW
 	if (!glfwInit())
 	{
-		const std::string error_msg = "GLFW initialization failed!";
-		const std::string glfw_error_msg = std::to_string(glfw_error_code) +
-										   "): " + glfw_error_str;
-		std::cout << error_msg + " - GLFW(" + glfw_error_msg << std::endl;
+		std::cerr << "GLFW initialization failed! - " << glfw_error_code << ": " << glfw_error_str << std::endl;
 		return EXIT_FAILURE;
 	}
 
@@ -64,143 +39,89 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, kGLVerMinor);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	GLFWwindow *window = glfwCreateWindow(kWindowWidth,
-										  kWindowHeight,
-										  kWindowTitle, nullptr, nullptr);
+	GLFWwindow *window = glfwCreateWindow(kWindowWidth, kWindowHeight, kWindowTitle, nullptr, nullptr);
 
 	if (window == nullptr)
 	{
-		// Clean resources already created
 		glfwTerminate();
-
-		const std::string error_msg = "GLFW window creation failed!";
-		const std::string glfw_error_msg = std::to_string(glfw_error_code) +
-										   "): " + glfw_error_str;
-		std::cout << error_msg + " - GLFW(" + glfw_error_msg << std::endl;
-
+		std::cerr << "GLFW window creation failed! - " << glfw_error_code << ": " << glfw_error_str << std::endl;
 		return EXIT_FAILURE;
 	}
 
 	glfwMakeContextCurrent(window);
 
-	// Load GLAD pointers in the current GLFW context
+	// 2. Cargar punteros de OpenGL mediante GLAD
 	if (!gladLoadGL(glfwGetProcAddress))
 	{
-		// Clean resources already created
 		glfwDestroyWindow(window);
 		glfwTerminate();
-
-		std::cout << "GLAD initialization failed!" << std::endl;
-
+		std::cerr << "GLAD initialization failed!" << std::endl;
 		return EXIT_FAILURE;
 	}
 
-	// Show current system OpenGL info
 	print_gl_version();
-
-	// Set GLFW callbacks
-	// glViewport(0, 0, kWindowWidth, kWindowHeight);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-	// Configure sync with monitor
-	// interval: the number of screen updates to wait from the time
-	// glfwSwapBuffers was called before swapping the buffers and returning.
-	// 0 -> run at code speed (don't sync to monitor)
-	// 1 -> sync with motinor refresh rate (code run at monitor refresh rate)
-	// 2 -> sync with half monitor refresh rate (code run at half monitor
-	//      refresh rate)
 	glfwSwapInterval(1);
 
-	//-==================== Aca empiezo ==================
-	// SHADERS ---------------------
-	// Leemos los archivos
-	/*std::string vertCode = loadShaderSource("shaders/shader.vert");
-	std::string fragCode = loadShaderSource("shaders/shader.frag");
+	// Habilitar el test de profundidad para el renderizado 3D correcto
+	glEnable(GL_DEPTH_TEST);
 
-	const char *vertexShaderSource = vertCode.c_str();
-	const char *fragmentShaderSource = fragCode.c_str();
-*/
-	// Leemos los archivos a traves del ResourceManager
-	ResourceManager resource_manager("shaders"); // assets_root =  "shaders/"
-
-	const ShaderSource &shader =
-		resource_manager.load_shader_source("triangulo", "shader.vert", "shader.frag");
-
-	const char *vertexShaderSource = shader.vs.c_str();
-	const char *fragmentShaderSource = shader.fs.c_str();
-	// por si hau error leyendo
-	if (shader.vs.empty() || shader.fs.empty())
+	// =========================================================================
+	// ÁMBITO LIMITADO PARA RECURSOS DE OPENGL
+	// Encapsulamos Mesh y Shader dentro de este bloque { } para asegurar que sus
+	// destructores se ejecuten MIENTRAS el contexto de OpenGL siga activo.
+	// =========================================================================
 	{
-		std::cerr << "ERROR::SHADER::SOURCES_INCOMPLETOS" << std::endl;
-		glfwDestroyWindow(window);
-		glfwTerminate();
-		return EXIT_FAILURE;
-	}
+		// ETAPA 1: Decidir los datos (Generar datos del cubo con el módulo Primitives)
+		MeshData cube_data = primitives::cube(1.0f, 1.0f, 1.0f);
 
-	// Compilar Vertex Shader
-	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-	glCompileShader(vertexShader);
+		// ETAPA 2: Pasar los datos a la GPU (Cargar la malla indexada en la GPU)
+		Mesh cube_mesh;
+		cube_mesh.load(cube_data);
 
-	// Compilar Fragment Shader
-	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-	glCompileShader(fragmentShader);
+		// ETAPA 3: Armar el programa de Shaders (Leer fuentes y compilar/linkear)
+		ResourceManager resource_manager("shaders");
+		const ShaderSource &shader_source = resource_manager.load_shader_source("triangulo", "shader.vert", "shader.frag");
 
-	// Linkear Programa
-	GLuint shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
+		if (shader_source.vs.empty() || shader_source.fs.empty())
+		{
+			std::cerr << "ERROR::SHADER::SOURCES_INCOMPLETOS" << std::endl;
+			glfwDestroyWindow(window);
+			glfwTerminate();
+			return EXIT_FAILURE;
+		}
 
-	// Liberar instancias individuales
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
+		Shader shader_program;
+		if (!shader_program.compile_from_source(shader_source.vs, shader_source.fs))
+		{
+			std::cerr << "ERROR::SHADER::COMPILACION_O_LINKEO_FALLIDO" << std::endl;
+			glfwDestroyWindow(window);
+			glfwTerminate();
+			return EXIT_FAILURE;
+		}
 
-	//=============== Ahora si lo primero que vimos en clase =========================
+		// Bucle principal de renderizado
+		while (!glfwWindowShouldClose(window))
+		{
+			processInput(window);
 
-	const float vertices[] = {
-		0.0f, 0.5f, 0.0f,	// arriba
-		-0.5f, -0.5f, 0.0f, // abajo izquierda
-		0.5f, -0.5f, 0.0f	// abajo derecha
-	};
-	// hasta aca exister solo en memoria, hay que mandarselo a la gpu
+			// Limpiar el búfer de color y el búfer de profundidad
+			glClearColor(51.0f / 255.0f, 55.0f / 255.0f, 76.0f / 255.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	GLuint vbo = 0;
-	glCreateBuffers(1, &vbo); // la GPU devuelve un nombre : un entero
-	glNamedBufferData(vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	// ahora copie los bytes crudos pero tengo que decirl como leerlos
+			// ETAPA 4: Dibujar
+			shader_program.use();
+			glBindVertexArray(cube_mesh.vao());
+			
+			// Dibujo con índices utilizando la cantidad de índices de la malla
+			glDrawElements(GL_TRIANGLES, cube_mesh.count(), GL_UNSIGNED_INT, nullptr);
 
-	GLuint vao = 0;
-	glCreateVertexArrays(1, &vao);
-	glVertexArrayVertexBuffer(vao, 0, vbo, 0, 3 * sizeof(float));
-	glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
-	glVertexArrayAttribBinding(vao, 0, 0);
-	glEnableVertexArrayAttrib(vao, 0);
-	// declaracion del VAO, ya se como leerlos
+			glfwSwapBuffers(window);
+			glfwPollEvents();
+		}
+	} // <- AQUÍ mueren `cube_mesh` y `shader_program`, liberando sus VBO/VAO/EBO/Program en la GPU.
 
-	glEnableVertexArrayAttrib(vao, 0); // arranca apagado, hay que prenderlo
-
-	while (!glfwWindowShouldClose(window))
-	{
-		// input
-		processInput(window);
-
-		// rendering commands here
-		glClearColor(51.0f / 256, 55.0f / 256, 76.0f / 256, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		// dibujamods
-		glUseProgram(shaderProgram);
-		glBindVertexArray(vao);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-
-		// check and call events and swap the buffers
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-	}
-
-	// Clean resources before close
+	// Limpieza final de la ventana y GLFW tras la destrucción de los objetos OpenGL
 	glfwDestroyWindow(window);
 	glfwTerminate();
 
@@ -213,8 +134,7 @@ void error_callback(int error, const char *description)
 	glfw_error_str = std::string(description);
 }
 
-void framebuffer_size_callback([[maybe_unused]] GLFWwindow *window,
-							   int width, int height)
+void framebuffer_size_callback([[maybe_unused]] GLFWwindow *window, int width, int height)
 {
 	glViewport(0, 0, width, height);
 }
@@ -229,13 +149,8 @@ void processInput(GLFWwindow *window)
 
 void print_gl_version(void)
 {
-	// show gl info
-	std::cout << " OpenGL Vendor: "
-			  << glGetString(GL_VENDOR) << std::endl;
-	std::cout << " OpenGL Renderer: "
-			  << glGetString(GL_RENDERER) << std::endl;
-	std::cout << " OpenGL Version: "
-			  << glGetString(GL_VERSION) << std::endl;
-	std::cout << " GLSL Version: "
-			  << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+	std::cout << " OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
+	std::cout << " OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
+	std::cout << " OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+	std::cout << " GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 }

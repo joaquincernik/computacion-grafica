@@ -24,7 +24,7 @@ INC_DIRS = \
 #    ./src/input
 LIB_DIRS = \
     $(GLAD_LIB_DIRS) \
-    ./src/ResourceManager
+    ./src/ResourceManager ./src/Shader ./src/Primitives ./src/Mesh
 
 # ------------------------------------------------------------------------------
 # Dir del main de la aplicación y nombre del archivo de código fuente
