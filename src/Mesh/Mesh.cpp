@@ -16,25 +16,58 @@ void Mesh::load(const MeshData &data)
 {
     // Si ya existía un VAO previo, limpiamos primero los recursos
     clear();
-
-    count_ = static_cast<int>(data.indices.size());
+    count_ = static_cast<int>(data.indices.size()); // cantidad total de indices del modelo
 
     // 1. Crear objetos en la GPU
+    crear_objetos_GPU();
+
+    // 2. Subir datos de vértices a la GPU
+    upload_vertex_data_GPU(data);
+
+    // 3. Conectar VBO y EBO al VAO y configurar atrivutos del vertex
+    configurar_vao();
+}
+void Mesh::clear(void)
+{
+    if (vao_ != 0U || vbo_ != 0U || ebo_ != 0U)
+    {
+        glDeleteVertexArrays(1, &vao_);
+        glDeleteBuffers(1, &vbo_);
+        glDeleteBuffers(1, &ebo_);
+    }
+    vao_ = vbo_ = ebo_ = 0U;
+    count_ = 0;
+}
+
+// funciones auxiliares
+
+void Mesh::crear_objetos_GPU()
+{
     glCreateVertexArrays(1, &vao_);
     glCreateBuffers(1, &vbo_);
-    glCreateBuffers(1, &ebo_); // <-- Tu código de creación de EBO
+    glCreateBuffers(1, &ebo_);
+}
 
-    // 2. Subir datos de vértices a la GPU (VBO)
+void Mesh::upload_vertex_data_GPU(const MeshData &data)
+{
+    // subida del vbo
     glNamedBufferData(vbo_, data.vertices.size() * sizeof(Vertex), data.vertices.data(), GL_STATIC_DRAW);
-
-    // 3. Subir datos de índices a la GPU (EBO)
+    // subida del ebo
     glNamedBufferData(ebo_, data.indices.size() * sizeof(unsigned int), data.indices.data(), GL_STATIC_DRAW);
 
-    // 4. Conectar VBO y EBO al VAO
-    glVertexArrayVertexBuffer(vao_, 0, vbo_, 0, sizeof(Vertex));
-    glVertexArrayElementBuffer(vao_, ebo_); // <-- Tu conexión al VAO
+    /*solo subimos estos dos porque son los unicos que contienen datos crusod en la memoria de la gpu
+    el VAO no almacena nada, es solo un mapa de conf9ig
+    */
+}
 
-    // 5. Configurar los atributos de vértice (Posición y Color)
+void Mesh::configurar_vao()
+{
+    /*asocia el buffer vbo_ al punto de amarre indice 0 dentro del vao comenznaod en byte 0
+    y caminando a pasos de size of vertex*/
+    glVertexArrayVertexBuffer(vao_, 0, vbo_, 0, sizeof(Vertex)); // stride
+    glVertexArrayElementBuffer(vao_, ebo_);
+
+    // Configurar los atributos de vértice (Posición y Color)
     glVertexArrayAttribFormat(vao_, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, px));
     glVertexArrayAttribBinding(vao_, 0, 0);
     glEnableVertexArrayAttrib(vao_, 0);
@@ -42,12 +75,4 @@ void Mesh::load(const MeshData &data)
     glVertexArrayAttribFormat(vao_, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, r));
     glVertexArrayAttribBinding(vao_, 1, 0);
     glEnableVertexArrayAttrib(vao_, 1);
-}
-void Mesh::clear(void)
-{
-    glDeleteVertexArrays(1, &vao_); // glDelete *(0) es legal : no hace nada
-    glDeleteBuffers(1, &vbo_);
-    glDeleteBuffers(1, &ebo_);
-    vao_ = vbo_ = ebo_ = 0U;
-    count_ = 0;
 }

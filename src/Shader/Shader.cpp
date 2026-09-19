@@ -3,6 +3,54 @@
 #include <iostream>
 #include <vector>
 
+using std::cerr;
+using std::endl;
+using std::string;
+using std::vector;
+
+static bool checkCompileErrors(GLuint shader, const std::string &type)
+{
+    const bool is_program = (type == "PROGRAM");
+    GLint success = 0;
+    if (is_program)
+    {
+        glGetProgramiv(shader, GL_LINK_STATUS, &success);
+    }
+    else
+    {
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    }
+
+    if (!success)
+    {
+        GLint log_length = 0;
+        if (is_program)
+        {
+            glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+        }
+        else
+        {
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+        }
+
+        std::vector<char> info_log(log_length);
+        if (is_program)
+        {
+            glGetProgramInfoLog(shader, log_length, nullptr, info_log.data());
+        }
+        else
+        {
+            glGetShaderInfoLog(shader, log_length, nullptr, info_log.data());
+        }
+
+        std::cerr << "[ERROR::SHADER::" << type << "::COMPILATION_FAILED]\n"
+                  << info_log.data() << std::endl;
+
+        return false; // Hubo un error
+    }
+
+    return true; // Compiló correctamente
+}
 // Destructor: destruye el programa en la GPU si existe
 Shader::~Shader()
 {
@@ -38,7 +86,7 @@ Shader &Shader::operator=(Shader &&other) noexcept
 }
 
 // Compila el Vertex y Fragment Shader, los linkea y limpia los shaders intermedios
-bool Shader::compile_from_source(const std::string &vs, const std::string &fs)
+bool Shader::compile_from_source(const string &vs, const string &fs)
 {
     // Si ya había un shader compilado previamente, limpiamos
     clear();
@@ -46,71 +94,29 @@ bool Shader::compile_from_source(const std::string &vs, const std::string &fs)
     const char *vs_code = vs.c_str();
     const char *fs_code = fs.c_str();
 
-    GLint success = 0;
-
     // 1. Crear y compilar el Vertex Shader
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vs_code, nullptr);
-    glCompileShader(vertex_shader);
-
-    // Verificar errores de compilación del Vertex Shader
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
-    if (!success)
+    GLuint vertex_shader = crear_vertex_shader_GPU(vs_code);
+    if (!checkCompileErrors(vertex_shader, "VERTEX"))
     {
-        GLint log_length = 0;
-        glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &log_length);
-        std::vector<char> info_log(log_length);
-        glGetShaderInfoLog(vertex_shader, log_length, nullptr, info_log.data());
-
-        std::cerr << "[ERROR::SHADER::VERTEX::COMPILATION_FAILED]\n"
-                  << info_log.data() << std::endl;
-
         glDeleteShader(vertex_shader);
         return false;
     }
 
     // 2. Crear y compilar el Fragment Shader
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fs_code, nullptr);
-    glCompileShader(fragment_shader);
-
-    // Verificar errores de compilación del Fragment Shader
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
-    if (!success)
+    GLuint fragment_shader = crear_fragment_shader_GPU(fs_code);
+    if (!checkCompileErrors(fragment_shader, "FRAGMENT"))
     {
-        GLint log_length = 0;
-        glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &log_length);
-        std::vector<char> info_log(log_length);
-        glGetShaderInfoLog(fragment_shader, log_length, nullptr, info_log.data());
-
-        std::cerr << "[ERROR::SHADER::FRAGMENT::COMPILATION_FAILED]\n"
-                  << info_log.data() << std::endl;
-
-        // Limpieza de recursos intermedios creados hasta el momento
         glDeleteShader(vertex_shader);
         glDeleteShader(fragment_shader);
         return false;
     }
 
     // 3. Crear el Program Object y vincular (link) los shaders
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
+    GLint program = crear_program_GPU(vertex_shader, fragment_shader);
 
     // Verificar errores de linkeo
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success)
+    if (!checkCompileErrors(program, "PROGRAM"))
     {
-        GLint log_length = 0;
-        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_length);
-        std::vector<char> info_log(log_length);
-        glGetProgramInfoLog(program, log_length, nullptr, info_log.data());
-
-        std::cerr << "[ERROR::SHADER::PROGRAM::LINKING_FAILED]\n"
-                  << info_log.data() << std::endl;
-
-        // Limpieza total si falla el linkeo
         glDeleteShader(vertex_shader);
         glDeleteShader(fragment_shader);
         glDeleteProgram(program);
@@ -118,11 +124,7 @@ bool Shader::compile_from_source(const std::string &vs, const std::string &fs)
     }
 
     // 4. Liberar los objetos de shader intermedios tras vincular exitosamente
-    // le digo a la placa de video que borre los objetos intermedios
-    glDetachShader(program, vertex_shader);
-    glDetachShader(program, fragment_shader);
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
+    borrarObjetosIntermedios(vertex_shader, fragment_shader, program);
 
     // Guardar el identificador del programa exitoso
     id_ = program;
@@ -146,4 +148,37 @@ void Shader::clear(void)
         glDeleteProgram(id_);
         id_ = 0U;
     }
+}
+
+GLuint Shader::crear_vertex_shader_GPU(const char *vs_code)
+{
+    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex_shader, 1, &vs_code, nullptr);
+    glCompileShader(vertex_shader);
+    return vertex_shader;
+}
+
+GLuint Shader::crear_fragment_shader_GPU(const char *fs_code)
+{
+    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment_shader, 1, &fs_code, nullptr);
+    glCompileShader(fragment_shader);
+    return fragment_shader;
+}
+GLuint Shader::crear_program_GPU(const GLuint vertex_shader, const GLuint fragment_shader)
+{
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vertex_shader);
+    glAttachShader(program, fragment_shader);
+    glLinkProgram(program);
+    return program;
+}
+
+void Shader::borrarObjetosIntermedios(const GLuint vertex_shader, const GLuint fragment_shader, const GLuint program)
+{
+    // le digo a la placa de video que borre los objetos intermedios
+    glDetachShader(program, vertex_shader);
+    glDetachShader(program, fragment_shader);
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
 }
