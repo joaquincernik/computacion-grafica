@@ -13,7 +13,7 @@ namespace primitives
         const float hz = scale_z * 0.5f;
 
         // Reservamos memoria para evitar reasignaciones
-        data.vertices.reserve(24); //reservar espacio de memoria, tiene la funcion vector
+        data.vertices.reserve(24); // reservar espacio de memoria, tiene la funcion vector
         data.indices.reserve(36);
 
         // Definición de vértices (4 por cara para permitir un color distinto por cara)
@@ -74,4 +74,26 @@ namespace primitives
         return data;
     }
 
+    /*MeshData cilinder()
+    {
+        int v_del_anillo = 0;
+        for (unsigned i = 0; i <= N; ++i) // OJO : <= y no <
+        {
+            const float th = 2.0 f * PI * float(i) / float(N);
+            Vertex v;
+            v.position = {r * cos(th), y, r * sin(th)};
+            v.normal = {cos(th), 0, sin(th)};
+            v.tex_coords = {float(i) / float(N), v_del_anillo};
+            vertices.push_back(v);
+        }
+
+        // indices
+        for (unsigned i = 0; i < N; ++i)
+        {
+            const unsigned b0 = i, b1 = i + 1;                 // anillo de abajo
+            const unsigned t0 = N + 1 + i, t1 = N + 1 + i + 1; // anillo de arriba
+            indices.insert(indices.end(), {b0, t1, b1});
+            indices.insert(indices.end(), {b0, t0, t1});
+        }
+    }*/
 } // namespace primitives

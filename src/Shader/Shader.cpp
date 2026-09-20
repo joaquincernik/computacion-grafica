@@ -2,6 +2,8 @@
 #include <glad/gl.h>
 #include <iostream>
 #include <vector>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 using std::cerr;
 using std::endl;
@@ -148,6 +150,13 @@ void Shader::clear(void)
         glDeleteProgram(id_);
         id_ = 0U;
     }
+}
+
+// nuevo practico 3
+void Shader::set_uniform(const std::string &nombre, const glm::mat4 &m) const
+{
+    const int loc = glGetUniformLocation(id_, nombre.c_str());
+    glProgramUniformMatrix4fv(id_, loc, 1, GL_FALSE, &m[0][0]); // DSA
 }
 
 GLuint Shader::crear_vertex_shader_GPU(const char *vs_code)
