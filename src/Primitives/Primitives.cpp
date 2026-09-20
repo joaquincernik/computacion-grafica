@@ -12,69 +12,63 @@ namespace primitives
         const float hy = scale_y * 0.5f;
         const float hz = scale_z * 0.5f;
 
-        // Reservamos memoria para evitar reasignaciones
-        data.vertices.reserve(24); // reservar espacio de memoria, tiene la funcion vector
+        data.vertices.reserve(24);
         data.indices.reserve(36);
 
-        // Definición de vértices (4 por cara para permitir un color distinto por cara)
-        // El orden de las esquinas en cada cara es ANTIHORARIO mirando desde afuera.
+        // Definición de vértices: { Posición (x,y,z), Normal (nx,ny,nz), UV (u,v) }
+        // Mantiene el orden antihorario mirando desde afuera para cada cara.
         data.vertices = {
-            // CARA FRONTAL (+Z) - Color: Rojo
-            {-hx, -hy, hz, 1.0f, 0.0f, 0.0f}, // Inferior Izquierda (0)
-            {hx, -hy, hz, 1.0f, 0.0f, 0.0f},  // Inferior Derecha   (1)
-            {hx, hy, hz, 1.0f, 0.0f, 0.0f},   // Superior Derecha   (2)
-            {-hx, hy, hz, 1.0f, 0.0f, 0.0f},  // Superior Izquierda (3)
+            // CARA FRONTAL (+Z) -> Normal apuntando hacia +Z: {0.0f, 0.0f, 1.0f}
+            {{-hx, -hy, hz}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, // Inf-Izq (0)
+            {{hx, -hy, hz}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},  // Inf-Der (1)
+            {{hx, hy, hz}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},   // Sup-Der (2)
+            {{-hx, hy, hz}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},  // Sup-Izq (3)
 
-            // CARA TRASERA (-Z) - Color: Verde
-            {hx, -hy, -hz, 0.0f, 1.0f, 0.0f},  // Inferior Izquierda (4)
-            {-hx, -hy, -hz, 0.0f, 1.0f, 0.0f}, // Inferior Derecha   (5)
-            {-hx, hy, -hz, 0.0f, 1.0f, 0.0f},  // Superior Derecha   (6)
-            {hx, hy, -hz, 0.0f, 1.0f, 0.0f},   // Superior Izquierda (7)
+            // CARA TRASERA (-Z) -> Normal apuntando hacia -Z: {0.0f, 0.0f, -1.0f}
+            {{hx, -hy, -hz}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},  // Inf-Izq (4)
+            {{-hx, -hy, -hz}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}}, // Inf-Der (5)
+            {{-hx, hy, -hz}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},  // Sup-Der (6)
+            {{hx, hy, -hz}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}},   // Sup-Izq (7)
 
-            // CARA IZQUIERDA (-X) - Color: Azul
-            {-hx, -hy, -hz, 0.0f, 0.0f, 1.0f}, // Inferior Izquierda (8)
-            {-hx, -hy, hz, 0.0f, 0.0f, 1.0f},  // Inferior Derecha   (9)
-            {-hx, hy, hz, 0.0f, 0.0f, 1.0f},   // Superior Derecha   (10)
-            {-hx, hy, -hz, 0.0f, 0.0f, 1.0f},  // Superior Izquierda (11)
+            // CARA IZQUIERDA (-X) -> Normal apuntando hacia -X: {-1.0f, 0.0f, 0.0f}
+            {{-hx, -hy, -hz}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // Inf-Izq (8)
+            {{-hx, -hy, hz}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},  // Inf-Der (9)
+            {{-hx, hy, hz}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},   // Sup-Der (10)
+            {{-hx, hy, -hz}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},  // Sup-Izq (11)
 
-            // CARA DERECHA (+X) - Color: Amarillo
-            {hx, -hy, hz, 1.0f, 1.0f, 0.0f},  // Inferior Izquierda (12)
-            {hx, -hy, -hz, 1.0f, 1.0f, 0.0f}, // Inferior Derecha   (13)
-            {hx, hy, -hz, 1.0f, 1.0f, 0.0f},  // Superior Derecha   (14)
-            {hx, hy, hz, 1.0f, 1.0f, 0.0f},   // Superior Izquierda (15)
+            // CARA DERECHA (+X) -> Normal apuntando hacia +X: {1.0f, 0.0f, 0.0f}
+            {{hx, -hy, hz}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},  // Inf-Izq (12)
+            {{hx, -hy, -hz}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // Inf-Der (13)
+            {{hx, hy, -hz}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},  // Sup-Der (14)
+            {{hx, hy, hz}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},   // Sup-Izq (15)
 
-            // CARA SUPERIOR (+Y) - Color: Magenta
-            {-hx, hy, hz, 1.0f, 0.0f, 1.0f},  // Inferior Izquierda (16)
-            {hx, hy, hz, 1.0f, 0.0f, 1.0f},   // Inferior Derecha   (17)
-            {hx, hy, -hz, 1.0f, 0.0f, 1.0f},  // Superior Derecha   (18)
-            {-hx, hy, -hz, 1.0f, 0.0f, 1.0f}, // Superior Izquierda (19)
+            // CARA SUPERIOR (+Y) -> Normal apuntando hacia +Y: {0.0f, 1.0f, 0.0f}
+            {{-hx, hy, hz}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},  // Inf-Izq (16)
+            {{hx, hy, hz}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},   // Inf-Der (17)
+            {{hx, hy, -hz}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},  // Sup-Der (18)
+            {{-hx, hy, -hz}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // Sup-Izq (19)
 
-            // CARA INFERIOR (-Y) - Color: Cían
-            {-hx, -hy, -hz, 0.0f, 1.0f, 1.0f}, // Inferior Izquierda (20)
-            {hx, -hy, -hz, 0.0f, 1.0f, 1.0f},  // Inferior Derecha   (21)
-            {hx, -hy, hz, 0.0f, 1.0f, 1.0f},   // Superior Derecha   (22)
-            {-hx, -hy, hz, 0.0f, 1.0f, 1.0f}   // Superior Izquierda (23)
+            // CARA INFERIOR (-Y) -> Normal apuntando hacia -Y: {0.0f, -1.0f, 0.0f}
+            {{-hx, -hy, -hz}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}}, // Inf-Izq (20)
+            {{hx, -hy, -hz}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},  // Inf-Der (21)
+            {{hx, -hy, hz}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},   // Sup-Der (22)
+            {{-hx, -hy, hz}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}}   // Sup-Izq (23)
         };
 
-        // Índices de los dos triángulos por cara (patrón 0,1,2 - 2,3,0 para cada conjunto de 4 vértices)
+        // Los índices no cambian: conectan los mismos grupos de 4 vértices por cara
         data.indices = {
-            // Cara Frontal
-            0, 1, 2, 2, 3, 0,
-            // Cara Trasera
-            4, 5, 6, 6, 7, 4,
-            // Cara Izquierda
-            8, 9, 10, 10, 11, 8,
-            // Cara Derecha
-            12, 13, 14, 14, 15, 12,
-            // Cara Superior
-            16, 17, 18, 18, 19, 16,
-            // Cara Inferior
-            20, 21, 22, 22, 23, 20};
+            0, 1, 2, 2, 3, 0,       // Cara Frontal
+            4, 5, 6, 6, 7, 4,       // Cara Trasera
+            8, 9, 10, 10, 11, 8,    // Cara Izquierda
+            12, 13, 14, 14, 15, 12, // Cara Derecha
+            16, 17, 18, 18, 19, 16, // Cara Superior
+            20, 21, 22, 22, 23, 20  // Cara Inferior
+        };
 
         return data;
     }
 
-    /*MeshData cilinder()
+    MeshData cilinder()
     {
         int v_del_anillo = 0;
         for (unsigned i = 0; i <= N; ++i) // OJO : <= y no <
@@ -95,5 +89,5 @@ namespace primitives
             indices.insert(indices.end(), {b0, t1, b1});
             indices.insert(indices.end(), {b0, t0, t1});
         }
-    }*/
+    }
 } // namespace primitives

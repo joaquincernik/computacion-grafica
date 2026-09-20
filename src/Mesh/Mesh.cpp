@@ -67,12 +67,17 @@ void Mesh::configurar_vao()
     glVertexArrayVertexBuffer(vao_, 0, vbo_, 0, sizeof(Vertex)); // stride
     glVertexArrayElementBuffer(vao_, ebo_);
 
-    // Configurar los atributos de vértice (Posición y Color)
-    glVertexArrayAttribFormat(vao_, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, px));
+    // Configurar los atributos de vértice
+    glVertexArrayAttribFormat(vao_, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, position));
     glVertexArrayAttribBinding(vao_, 0, 0);
     glEnableVertexArrayAttrib(vao_, 0);
 
-    glVertexArrayAttribFormat(vao_, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, r));
+    glVertexArrayAttribFormat(vao_, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
     glVertexArrayAttribBinding(vao_, 1, 0);
     glEnableVertexArrayAttrib(vao_, 1);
+
+    // se agrega esto nomas
+    glVertexArrayAttribFormat(vao_, 2, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, tex_coords));
+    glVertexArrayAttribBinding(vao_, 2, 0);
+    glEnableVertexArrayAttrib(vao_, 2);
 }

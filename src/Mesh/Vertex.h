@@ -1,6 +1,10 @@
 #pragma once
 
-struct Vertex {
-    float px, py, pz; // Posición (x, y, z)
-    float r, g, b;    // Color (r, g, b)
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+struct Vertex
+{
+    glm::vec3 position;
+    glm::vec3 normal;
+    glm::vec2 tex_coords;
 };
