@@ -160,3 +160,7 @@ void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const 
 ```
 
 ![alt text](image.png)
+
+
+Hacinedo la prueba de normal obtenemos esto
+![alt text](image-1.png)
