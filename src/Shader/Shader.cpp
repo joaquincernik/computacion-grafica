@@ -159,6 +159,13 @@ void Shader::set_uniform(const std::string &nombre, const glm::mat4 &m) const
     glProgramUniformMatrix4fv(id_, loc, 1, GL_FALSE, &m[0][0]); // DSA
 }
 
+void Shader::set_uniform(const std::string &nombre, const glm::vec3 &v) const
+{
+    const int loc = glGetUniformLocation(id_, nombre.c_str());
+    glProgramUniform3fv(id_, loc, 1, &v[0]); // DSA
+}
+
+// PRIVADOS
 GLuint Shader::crear_vertex_shader_GPU(const char *vs_code)
 {
     GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);

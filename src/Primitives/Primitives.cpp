@@ -1,5 +1,8 @@
 #include "Primitives.h"
-
+#include <vector>
+#include <cmath>
+#include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 namespace primitives
 {
 
@@ -15,7 +18,6 @@ namespace primitives
         data.vertices.reserve(24);
         data.indices.reserve(36);
 
-        // Definición de vértices: { Posición (x,y,z), Normal (nx,ny,nz), UV (u,v) }
         // Mantiene el orden antihorario mirando desde afuera para cada cara.
         data.vertices = {
             // CARA FRONTAL (+Z) -> Normal apuntando hacia +Z: {0.0f, 0.0f, 1.0f}
@@ -55,7 +57,7 @@ namespace primitives
             {{-hx, -hy, hz}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}}   // Sup-Izq (23)
         };
 
-        // Los índices no cambian: conectan los mismos grupos de 4 vértices por cara
+        // Los índices no cambian
         data.indices = {
             0, 1, 2, 2, 3, 0,       // Cara Frontal
             4, 5, 6, 6, 7, 4,       // Cara Trasera
@@ -67,27 +69,127 @@ namespace primitives
 
         return data;
     }
-
-    MeshData cilinder()
+    MeshData cylinder(float radio, float largo, unsigned gajos, unsigned anillos)
     {
-        int v_del_anillo = 0;
-        for (unsigned i = 0; i <= N; ++i) // OJO : <= y no <
+        MeshData data;
+        const float PI = glm::pi<float>();
+
+        // reserva de memoria
+        const unsigned total_vertices = (gajos + 1) * (anillos + 1);
+        const unsigned total_indices = gajos * anillos * 6;
+        data.vertices.reserve(total_vertices);
+        data.indices.reserve(total_indices);
+
+        // generacion por vertices
+        for (unsigned ring = 0; ring <= anillos; ++ring)
         {
-            const float th = 2.0 f * PI * float(i) / float(N);
-            Vertex v;
-            v.position = {r * cos(th), y, r * sin(th)};
-            v.normal = {cos(th), 0, sin(th)};
-            v.tex_coords = {float(i) / float(N), v_del_anillo};
-            vertices.push_back(v);
+            const float nivel_anillo = static_cast<float>(ring) / static_cast<float>(anillos); // si es el anillo superior o inferior
+            const float y = nivel_anillo * largo;
+            for (unsigned i = 0; i <= gajos; ++i)
+            {
+                const float th = 2.0f * PI * float(i) / float(gajos);
+                Vertex v;
+                v.position = {radio * cos(th), y, radio * sin(th)};
+                v.normal = {cos(th), 0.0f, sin(th)};
+                v.tex_coords = {float(i) / float(gajos), nivel_anillo};
+                data.vertices.push_back(v);
+            }
         }
 
         // indices
-        for (unsigned i = 0; i < N; ++i)
+        for (unsigned i = 0; i < gajos; ++i)
         {
-            const unsigned b0 = i, b1 = i + 1;                 // anillo de abajo
-            const unsigned t0 = N + 1 + i, t1 = N + 1 + i + 1; // anillo de arriba
-            indices.insert(indices.end(), {b0, t1, b1});
-            indices.insert(indices.end(), {b0, t0, t1});
+            const unsigned b0 = i, b1 = i + 1;                         // anillo de abajo
+            const unsigned t0 = gajos + 1 + i, t1 = gajos + 1 + i + 1; // anillo de arriba
+            data.indices.insert(data.indices.end(), {b0, t1, b1});
+            data.indices.insert(data.indices.end(), {b0, t0, t1});
         }
+
+        return data;
     }
+
+    MeshData cone(float radio, float conicidad, unsigned gajos, unsigned anillos)
+    {
+        MeshData data;
+
+        const unsigned N = gajos;
+        const float PI = glm::pi<float>();
+
+        // Si la conicidad viene en grados, convertir a radianes:
+        // const float alpha = glm::radians(conicidad);
+        const float alpha = conicidad;
+        const float alpha_2 = alpha * 0.5f; // Semiángulo de conicidad (alpha/2)
+
+        // Altura h calculada por trigonometría: tan(alpha/2) = radio / altura
+        const float altura = radio / std::tan(alpha_2);
+
+        // Reservamos memoria suficiente
+        const unsigned total_vertices = (N + 1) * (anillos + 1);
+        const unsigned total_indices = N * anillos * 6;
+        data.vertices.reserve(total_vertices);
+        data.indices.reserve(total_indices);
+
+        // Precalculamos seno y coseno del semiángulo para las normales
+        const float cos_alpha_2 = std::cos(alpha_2);
+        const float sin_alpha_2 = std::sin(alpha_2);
+
+        // 1. GENERACIÓN DE VÉRTICES POR ANILLOS
+        for (unsigned ring = 0; ring <= anillos; ++ring)
+        {
+            // Progreso vertical (V) de 0.0f (base) a 1.0f (ápice)
+            const float v_del_anillo = static_cast<float>(ring) / static_cast<float>(anillos);
+
+            // El radio disminuye linealmente a medida que subimos hacia el ápice
+            const float r_ring = radio * (1.0f - v_del_anillo);
+            const float y = v_del_anillo * altura;
+
+            // Bucle diametral (N + 1 vértices para manejar la costura UV)
+            for (unsigned i = 0; i <= N; ++i)
+            {
+                const float u_del_gajo = static_cast<float>(i) / static_cast<float>(N);
+                const float th = 2.0f * PI * u_del_gajo;
+                const float cos_th = cos(th);
+                const float sin_th = sin(th);
+
+                Vertex v;
+                // Posición 3D
+                v.position = {r_ring * cos_th, y, r_ring * sin_th};
+
+                // Normal inclinada por el semiángulo de conicidad
+                v.normal = {cos_th * cos_alpha_2, sin_alpha_2, sin_th * cos_alpha_2};
+
+                // Coordenadas de textura UV
+                v.tex_coords = {u_del_gajo, v_del_anillo};
+
+                data.vertices.push_back(v);
+            }
+        }
+
+        // 2. GENERACIÓN DE ÍNDICES (TIRAS DE TRIÁNGULOS)
+        for (unsigned ring = 0; ring < anillos; ++ring)
+        {
+            const unsigned ring_bottom_offset = ring * (N + 1);
+            const unsigned ring_top_offset = (ring + 1) * (N + 1);
+
+            for (unsigned i = 0; i < N; ++i)
+            {
+                const unsigned b0 = ring_bottom_offset + i;
+                const unsigned b1 = ring_bottom_offset + i + 1;
+                const unsigned t0 = ring_top_offset + i;
+                const unsigned t1 = ring_top_offset + i + 1;
+
+                // Orden antihorario (CCW) visto desde afuera para que la normal apunte hacia afuera
+                data.indices.push_back(b0);
+                data.indices.push_back(t1);
+                data.indices.push_back(b1);
+
+                data.indices.push_back(b0);
+                data.indices.push_back(t0);
+                data.indices.push_back(t1);
+            }
+        }
+
+        return data;
+    }
+
 } // namespace primitives

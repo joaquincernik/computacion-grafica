@@ -22,11 +22,6 @@ public:
     unsigned int id(void) const { return id_; };
     void set_uniform(const std::string &nombre, const glm::mat4 &m) const;
     void set_uniform(const std::string &nombre, const glm::vec3 &v) const;
-    void set_uniform(const std::string &nombre, float valor) const;
-    // se consulta el identificador una vez al crear el shader y se almacena
-    int loc(const std::string &nombre) const;
-    // y despues se usa el identificador y no el texto
-    void set_uniform(int ubicacion, const glm::mat4 &m) const;
 
 private:
     GLuint crear_vertex_shader_GPU(const char *vs_code);
