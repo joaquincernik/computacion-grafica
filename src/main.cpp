@@ -109,14 +109,14 @@ int main()
 
 		// matriz de ajuste
 		const float ancho = 800.0f, alto = 600.0f;
-		const float escala = 0.8f; // Reduce todo el modelo al 50% para que no se recorte al rotar en 3D
+		const float escala = 0.5f; // Reduce todo el modelo al 50% para que no se recorte al rotar en 3D
 		const glm::mat4 ajuste = glm::scale(glm::mat4(1.0f), glm::vec3((alto / ancho) * escala, escala, escala));
 		shader_program.use();
 		shader_program.set_uniform("uAjuste", ajuste); // invierte eje z para la regla de mano derecha y ajsuta window
 
 		// Posición y orientación inicial del avión
 		glm::vec3 posicion = glm::vec3(0.0f, 0.0f, 0.0f);
-glm::vec3 angulos  = glm::vec3(-20.0f, -40.0f, 0.0f);
+		glm::vec3 angulos = glm::vec3(-20.0f, -40.0f, 0.0f);
 		// Bucle principal de renderizado
 		while (!glfwWindowShouldClose(window))
 		{

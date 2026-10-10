@@ -19,4 +19,5 @@ private:
     std::vector<glm::vec4> colores_;
     glm::mat4 pose_{1.0f};
     glm::vec3 reference_point_{0.0f}; // punto de referencia de la pose
+    void load_mesh(const MeshData &data); // carga una malla y la agrega a piezas_
 };
