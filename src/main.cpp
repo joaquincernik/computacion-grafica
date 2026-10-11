@@ -11,12 +11,17 @@
 #include "Scene/Aircraft/Aircraft.h"
 #include "CameraSystem/CameraSystem.h"
 #include "Utils/WindowContext.h"
+#include "InputHandler/InputHandler.h"
+#include <dlfdm/models/aircraft/jettrainer.h>
+#include <dlfdm/defines.h>
+#include <dlfdm/fdmsolver.h>
 
 using glm::mat4;
 using glm::vec3;
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::min;
 using std::string;
 using std::vector;
 
@@ -39,12 +44,27 @@ static const float zoom_speed = 0.1f;	 // Ajusta este valor si quieres que acerq
 static string glfw_error_str{};
 static void fatal_error(const string &error_message, GLFWwindow *window = nullptr);
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-static void processInput(GLFWwindow *window);
 static void print_gl_version(void);
 static void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color);
-static void mouse_movement(double xpos, double ypos);
 
-// Guardián del contexto de la ventana y GLFW
+// Estructura y función para traducir de NED (Física) a OpenGL (Gráficos)
+struct FlightData
+{
+	glm::vec3 position;
+	float phi, theta, psi;
+};
+
+FlightData to_world(const dlfdm::AircraftState &ned)
+{
+	FlightData gl;
+	gl.position.x = ned.inertial_position.y;
+	gl.position.y = -ned.inertial_position.z;
+	gl.position.z = -ned.inertial_position.x;
+	gl.phi = -ned.phi;
+	gl.theta = ned.theta;
+	gl.psi = -ned.psi;
+	return gl;
+}
 
 int main()
 {
@@ -74,20 +94,54 @@ int main()
 	CameraSystem camera_system(kWindowWidth, kWindowHeight);
 	glfwSetWindowUserPointer(ctx.window, &camera_system);
 
+	InputHandler input_handler;		// aca metemos el input handler
+	input_handler.init(ctx.window); // en este init le pasamos como callback
+
+	// --- INICIALIZACIÓN DEL FDM ---
+	dlfdm::AircraftParameters aermacchi_s211 = dlfdm::jettrainer::load_model();
+	dlfdm::FDMSolver fdm(aermacchi_s211);
+
+	dlfdm::TrimPoint trim = dlfdm::jettrainer::get_trim_condition(dlfdm::jettrainer::TrimCondition::kISA5000TAS150);
+	fdm.setState(trim.state);
+	input_handler.set_controls(trim.controls);
+	// ------------------------------
+
 	vec3 posicion(0.0f);
 	vec3 angulos(-20.0f, -40.0f, 0.0f);
+
+	const double dt = 1.0 / 120.0;
+	float last_frame_time = static_cast<float>(glfwGetTime());
+	double acc = 0.0;
 
 	// 3. Bucle principal limpio
 	while (!glfwWindowShouldClose(ctx.window))
 	{
-		processInput(ctx.window);
+		double current_frame_time = static_cast<float>(glfwGetTime());
+		double frame_dt = current_frame_time - last_frame_time;
+		last_frame_time = current_frame_time;
+
+		input_handler.update(ctx.window, (float)frame_dt);
+		CameraCommand cmd = input_handler.camera_cmd();
+
+		// acumulamso tope de tiempo
+		acc += min(frame_dt, 0.25);
+		while (acc >= dt)
+		{
+			// EL FDM AVANZA UN PASO FÍSICO
+			fdm.update(input_handler.controls());
+			acc -= dt;
+		}
+
+		// --- APLICAR LA FÍSICA A LA ESCENA ---
+		FlightData datos_vuelo = to_world(fdm.getState());
+		posicion = datos_vuelo.position;
+		angulos = vec3(datos_vuelo.phi, datos_vuelo.theta, datos_vuelo.psi);
+		// -------------------------------------
+
+		camera_system.update(posicion, angulos, cmd);
 
 		glClearColor(51.0f / 255.0f, 55.0f / 255.0f, 76.0f / 255.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		CameraCommand cmd{g_yaw_delta, g_pitch_delta, g_dist_delta};
-		g_yaw_delta = g_pitch_delta = g_dist_delta = 0.0f;
-		camera_system.update(posicion, angulos, cmd);
 
 		shader_program.use();
 		shader_program.set_uniform("uView", camera_system.data().view);
@@ -124,28 +178,6 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 	}
 }
 
-void processInput(GLFWwindow *window)
-{
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-	{
-		glfwSetWindowShouldClose(window, true);
-	}
-
-	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-	{
-		g_dist_delta -= zoom_speed; // Acercar (reducir distancia)
-	}
-	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-	{
-		g_dist_delta += zoom_speed; // Alejar (aumentar distancia)
-	}
-	// --- POLLING DEL MOUSE ---
-	double xpos_d, ypos_d;
-	glfwGetCursorPos(window, &xpos_d, &ypos_d); // Leemos la posición actual
-
-	mouse_movement(xpos_d, ypos_d); // Calculamos el delta y actualizamos las variables globales
-}
-
 void print_gl_version(void)
 {
 	cout << " OpenGL Vendor: " << glGetString(GL_VENDOR) << endl;
@@ -178,25 +210,4 @@ void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const 
 	shader.set_uniform("uColor", color);
 	glBindVertexArray(mesh.vao());
 	glDrawElements(GL_TRIANGLES, mesh.count(), GL_UNSIGNED_INT, nullptr);
-}
-static void mouse_movement(double xpos, double ypos)
-{
-	xpos = static_cast<float>(xpos);
-	ypos = static_cast<float>(ypos);
-
-	if (g_firstMouse)
-	{
-		g_lastX = xpos;
-		g_lastY = ypos;
-		g_firstMouse = false;
-	}
-
-	float xoffset = xpos - g_lastX;
-	float yoffset = ypos - g_lastY;
-
-	g_lastX = xpos;
-	g_lastY = ypos;
-
-	g_yaw_delta += xoffset * sensitivity;
-	g_pitch_delta += yoffset * sensitivity;
 }

@@ -1,5 +1,5 @@
 
-
+#pragma once
 struct CameraCommand
 {
     float yaw_delta = 0.0f;   // [rad] - cambio de longitud, acumulado en el cuadro

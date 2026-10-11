@@ -8,11 +8,14 @@ GLAD_DIR = ./third_party/glad
 include $(GLAD_DIR)/glad.mk
 
 # ------------------------------------------------------------------------------
+DLFDM_DIR = ./src/FDM/dlfdm
+include $(DLFDM_DIR)/dlfdm.mk
+
 # Configurar includes paths
 INC_DIRS = \
     $(GLAD_INC_DIRS) \
+    ${DLFDM_INC_DIRS} \
     ./src
-
 # ------------------------------------------------------------------------------
 # Configurar dirs de librerias externas y dirs locales al proyecto
 # (fuentes para compilar).
@@ -25,7 +28,8 @@ INC_DIRS = \
 LIB_DIRS = \
     $(GLAD_LIB_DIRS) \
     ./src/ResourceManager ./src/Shader ./src/Primitives ./src/Mesh \
-    ./src/Scene/Aircraft ./src/CameraSystem ./src/Utils
+    ./src/Scene/Aircraft ./src/CameraSystem ./src/Utils $(DLFDM_LIB_DIRS) \
+    ./src/InputHandler
 
 # ------------------------------------------------------------------------------
 # Dir del main de la aplicación y nombre del archivo de código fuente
