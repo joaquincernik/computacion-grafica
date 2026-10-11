@@ -25,7 +25,7 @@ INC_DIRS = \
 LIB_DIRS = \
     $(GLAD_LIB_DIRS) \
     ./src/ResourceManager ./src/Shader ./src/Primitives ./src/Mesh \
-    ./src/Scene/Aircraft ./src/CameraSystem
+    ./src/Scene/Aircraft ./src/CameraSystem ./src/Utils
 
 # ------------------------------------------------------------------------------
 # Dir del main de la aplicación y nombre del archivo de código fuente

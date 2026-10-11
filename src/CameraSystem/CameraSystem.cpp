@@ -33,9 +33,10 @@ void CameraSystem::update(glm::vec3 pos_avion, glm::vec3 angulos_avion, const Ca
 
     // Establecer la posición de la cámara relativa al avión
     vec3 eye = pos_avion + vec3(x, y, z);
+    vec3 eje_y = vec3(0.0f, 1.0f, 0.0f); // Vector hacia arriba
 
     // Calcular la matriz de vista usando lookAt
-    data_.view = lookAt(eye, pos_avion, vec3(0.0f, 1.0f, 0.0f));
+    data_.view = lookAt(eye, pos_avion, eje_y);
 };
 
 void CameraSystem::set_viewport(int width, int height)

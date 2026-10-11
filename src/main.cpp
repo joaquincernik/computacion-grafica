@@ -10,6 +10,7 @@
 #include "Shader/Shader.h"
 #include "Scene/Aircraft/Aircraft.h"
 #include "CameraSystem/CameraSystem.h"
+#include "Utils/WindowContext.h"
 
 using glm::mat4;
 using glm::vec3;
@@ -26,8 +27,8 @@ static constexpr int kGLVerMajor = 4;
 static constexpr int kGLVerMinor = 6;
 
 // Variables globales para el control de la cámara
-static float g_yaw_delta = 0.0f;
 static float g_pitch_delta = 0.0f;
+static float g_yaw_delta = 0.0f;
 static float g_dist_delta = 0.0f;
 static float g_lastX = 400.0f;
 static float g_lastY = 300.0f;
@@ -35,61 +36,16 @@ static bool g_firstMouse = true;
 static const float sensitivity = 0.005f; // Sensibilidad en radianes
 static const float zoom_speed = 0.1f;	 // Ajusta este valor si quieres que acerque más rápido o más lento
 
-static int glfw_error_code{};
 static string glfw_error_str{};
-
-static GLFWwindow *crear_window();
 static void fatal_error(const string &error_message, GLFWwindow *window = nullptr);
-static void error_callback(int error, const char *description);
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 static void processInput(GLFWwindow *window);
 static void print_gl_version(void);
 static void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color);
-static void mouse_callback(GLFWwindow *window, double xpos, double ypos);
+static void mouse_movement(double xpos, double ypos);
 
 // Guardián del contexto de la ventana y GLFW
-class WindowContext
-{
-public:
-	GLFWwindow *window = nullptr;
 
-	WindowContext(int width, int height, const char *title)
-	{
-		glfwSetErrorCallback(error_callback);
-		if (!glfwInit())
-		{
-			fatal_error("GLFW initialization failed!");
-		}
-
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, kGLVerMajor);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, kGLVerMinor);
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-		window = glfwCreateWindow(width, height, title, nullptr, nullptr);
-		if (!window)
-		{
-			fatal_error("Window creation failed!");
-		}
-
-		glfwMakeContextCurrent(window);
-
-		if (!gladLoadGL(glfwGetProcAddress))
-		{
-			fatal_error("GLAD initialization failed!");
-		}
-	}
-
-	~WindowContext()
-	{
-		if (window)
-			glfwDestroyWindow(window);
-		glfwTerminate();
-	}
-
-	// Evitamos copias accidentales
-	WindowContext(const WindowContext &) = delete;
-	WindowContext &operator=(const WindowContext &) = delete;
-};
 int main()
 {
 	// 1. El contexto se crea primero
@@ -98,7 +54,7 @@ int main()
 	print_gl_version();
 	glfwSetFramebufferSizeCallback(ctx.window, framebuffer_size_callback);
 	glfwSwapInterval(1);
-	glfwSetCursorPosCallback(ctx.window, mouse_callback);
+	// glfwSetCursorPosCallback(ctx.window, mouse_callback); si queremos no polling
 	glEnable(GL_DEPTH_TEST);
 
 	// 2. Recursos OpenGL declarados al mismo nivel de scope
@@ -154,12 +110,6 @@ int main()
 	// Al salir de main(), primero se destruyen los recursos (aircraft, shaders),
 	// y AL FINAL se ejecuta ~WindowContext(), llamando a glfwDestroyWindow y glfwTerminate en orden.
 }
-void error_callback(int error, const char *description)
-{
-	glfw_error_code = error;
-	glfw_error_str = string(description);
-}
-
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
 	glViewport(0, 0, width, height);
@@ -189,6 +139,11 @@ void processInput(GLFWwindow *window)
 	{
 		g_dist_delta += zoom_speed; // Alejar (aumentar distancia)
 	}
+	// --- POLLING DEL MOUSE ---
+	double xpos_d, ypos_d;
+	glfwGetCursorPos(window, &xpos_d, &ypos_d); // Leemos la posición actual
+
+	mouse_movement(xpos_d, ypos_d); // Calculamos el delta y actualizamos las variables globales
 }
 
 void print_gl_version(void)
@@ -199,13 +154,6 @@ void print_gl_version(void)
 	cout << " GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
 }
 
-static GLFWwindow *crear_window()
-{
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, kGLVerMajor);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, kGLVerMinor);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	return glfwCreateWindow(kWindowWidth, kWindowHeight, kWindowTitle, nullptr, nullptr);
-}
 static void fatal_error(const string &error_message, GLFWwindow *window)
 {
 	cerr << error_message << endl;
@@ -231,7 +179,7 @@ void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const 
 	glBindVertexArray(mesh.vao());
 	glDrawElements(GL_TRIANGLES, mesh.count(), GL_UNSIGNED_INT, nullptr);
 }
-static void mouse_callback(GLFWwindow *window, double xpos, double ypos)
+static void mouse_movement(double xpos, double ypos)
 {
 	xpos = static_cast<float>(xpos);
 	ypos = static_cast<float>(ypos);
