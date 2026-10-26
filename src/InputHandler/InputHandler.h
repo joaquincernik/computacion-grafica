@@ -17,6 +17,7 @@ public:
 private:
     CameraCommand m_cmd{};
     void mouse_movement(double xpos, double ypos);
+    void plane_movement(GLFWwindow *window, float dt); // Método para manejar el movimiento del avión
     dlfdm::ControlInputs m_controls{};
 
     // Estado del mouse

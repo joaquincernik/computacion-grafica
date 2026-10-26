@@ -12,6 +12,7 @@
 #include "CameraSystem/CameraSystem.h"
 #include "Utils/WindowContext.h"
 #include "InputHandler/InputHandler.h"
+#include "Scene/Aircraft/FlightData.h"
 #include <dlfdm/models/aircraft/jettrainer.h>
 #include <dlfdm/defines.h>
 #include <dlfdm/fdmsolver.h>
@@ -31,40 +32,11 @@ static constexpr int kWindowHeight = 600;
 static constexpr int kGLVerMajor = 4;
 static constexpr int kGLVerMinor = 6;
 
-// Variables globales para el control de la cámara
-static float g_pitch_delta = 0.0f;
-static float g_yaw_delta = 0.0f;
-static float g_dist_delta = 0.0f;
-static float g_lastX = 400.0f;
-static float g_lastY = 300.0f;
-static bool g_firstMouse = true;
-static const float sensitivity = 0.005f; // Sensibilidad en radianes
-static const float zoom_speed = 0.1f;	 // Ajusta este valor si quieres que acerque más rápido o más lento
-
 static string glfw_error_str{};
 static void fatal_error(const string &error_message, GLFWwindow *window = nullptr);
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 static void print_gl_version(void);
 static void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color);
-
-// Estructura y función para traducir de NED (Física) a OpenGL (Gráficos)
-struct FlightData
-{
-	glm::vec3 position;
-	float phi, theta, psi;
-};
-
-FlightData to_world(const dlfdm::AircraftState &ned)
-{
-	FlightData gl;
-	gl.position.x = ned.inertial_position.y;
-	gl.position.y = -ned.inertial_position.z;
-	gl.position.z = -ned.inertial_position.x;
-	gl.phi = -ned.phi;
-	gl.theta = ned.theta;
-	gl.psi = -ned.psi;
-	return gl;
-}
 
 int main()
 {
@@ -77,30 +49,28 @@ int main()
 	// glfwSetCursorPosCallback(ctx.window, mouse_callback); si queremos no polling
 	glEnable(GL_DEPTH_TEST);
 
-	// 2. Recursos OpenGL declarados al mismo nivel de scope
+	// -- AERONAVE --
 	Aircraft aircraft;
 	aircraft.init();
 	vector<RenderItem> items;
 
+	// -- SHADER --
 	ResourceManager resource_manager("shaders");
 	const ShaderSource &shader_source = resource_manager.load_shader_source("escena", "shader.vert", "shader.frag");
-
 	Shader shader_program;
-	if (!shader_program.compile_from_source(shader_source.vs, shader_source.fs))
-	{
-		fatal_error("Shader compilation failed!", ctx.window);
-	}
-
+	if (!shader_program.compile_from_source(shader_source.vs, shader_source.fs)) fatal_error("Shader compilation failed!", ctx.window);
+	
+	// -- CÁMARA --
 	CameraSystem camera_system(kWindowWidth, kWindowHeight);
 	glfwSetWindowUserPointer(ctx.window, &camera_system);
 
+	// -- INPUT HANDLER --
 	InputHandler input_handler;		// aca metemos el input handler
 	input_handler.init(ctx.window); // en este init le pasamos como callback
 
 	// --- INICIALIZACIÓN DEL FDM ---
 	dlfdm::AircraftParameters aermacchi_s211 = dlfdm::jettrainer::load_model();
 	dlfdm::FDMSolver fdm(aermacchi_s211);
-
 	dlfdm::TrimPoint trim = dlfdm::jettrainer::get_trim_condition(dlfdm::jettrainer::TrimCondition::kISA5000TAS150);
 	fdm.setState(trim.state);
 	input_handler.set_controls(trim.controls);
@@ -117,10 +87,10 @@ int main()
 	while (!glfwWindowShouldClose(ctx.window))
 	{
 		double current_frame_time = static_cast<float>(glfwGetTime());
-		double frame_dt = current_frame_time - last_frame_time;
+		double frame_dt = (float) (current_frame_time - last_frame_time);
 		last_frame_time = current_frame_time;
 
-		input_handler.update(ctx.window, (float)frame_dt);
+		input_handler.update(ctx.window, frame_dt);
 		CameraCommand cmd = input_handler.camera_cmd();
 
 		// acumulamso tope de tiempo
