@@ -1,6 +1,18 @@
 #include "InputHandler.h"
 #include <algorithm>
 
+const float MAS_POTENCIA = GLFW_KEY_W; // POTENCIA
+const float MENOS_POTENCIA = GLFW_KEY_S; // POTENCIA
+
+const float NARIZ_ARRIBA = GLFW_KEY_UP; // ELEVADOR
+const float NARIZ_ABAJO = GLFW_KEY_DOWN; // ELEVADOR
+
+const float NARIZ_DERECHA = GLFW_KEY_E; // GUINADA
+const float NARIZ_IZQUIERDA = GLFW_KEY_Q; // GUINADA
+
+const float ALABEO_DERECHA = GLFW_KEY_RIGHT; // ALABEO
+const float ALABEO_IZQUIERDA = GLFW_KEY_LEFT; //ALABEO
+
 static float s_scroll_delta = 0.0f;
 using namespace std;
 

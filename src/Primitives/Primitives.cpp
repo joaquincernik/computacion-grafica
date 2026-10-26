@@ -3,6 +3,8 @@
 #include <cmath>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
+#include "Utils/Alturas.h"
+#include <algorithm>
 namespace primitives
 {
 
@@ -192,4 +194,61 @@ namespace primitives
         return data;
     }
 
+    MeshData terreno(int N, float step, const Alturas &alturas)
+    {
+        MeshData data;
+
+        // Reservamos memoria para los vértices y los índices
+        data.vertices.reserve((N + 1) * (N + 1));
+        data.indices.reserve(N * N * 6);
+
+        auto get_h = [&](int r, int c)
+        {
+            int r_clamped = std::clamp(r, 0, N);
+            int c_clamped = std::clamp(c, 0, N);
+            return alturas(r_clamped, c_clamped);
+        };
+
+        // Generamos los vértices
+        for (int i = 0; i <= N; ++i)
+        {
+            for (int j = 0; j <= N; ++j)
+            {
+                Vertex v;
+                float y = alturas(i, j);
+                v.position = {j * step, y, i * step}; // Posición en el plano XZ
+
+                float df_dx = (get_h(i, j - 1) - get_h(i, j + 1)) / (2.0f * step);
+                float df_dz = (get_h(i - 1, j) - get_h(i + 1, j)) / (2.0f * step);
+                v.normal = glm::normalize(glm::vec3(df_dx, 1.0f, df_dz));
+                
+                v.tex_coords = {static_cast<float>(j) / N, static_cast<float>(i) / N}; // Coordenadas de textura
+                data.vertices.push_back(v);
+            }
+        }
+
+        // Generamos los índices para formar triángulos
+        for (int i = 0; i < N; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                int topLeft = i * (N + 1) + j;
+                int topRight = topLeft + 1;
+                int bottomLeft = (i + 1) * (N + 1) + j;
+                int bottomRight = bottomLeft + 1;
+
+                // Primer triángulo
+                data.indices.push_back(topLeft);
+                data.indices.push_back(bottomLeft);
+                data.indices.push_back(topRight);
+
+                // Segundo triángulo
+                data.indices.push_back(topRight);
+                data.indices.push_back(bottomLeft);
+                data.indices.push_back(bottomRight);
+            }
+        }
+
+        return data;
+    }
 } // namespace primitives

@@ -21,10 +21,8 @@ void CameraSystem::update(glm::vec3 pos_avion, glm::vec3 angulos_avion, const Ca
     distancia_ += cmd.dist_delta;
 
     // Limitar el pitch para evitar que la cámara se voltee
-    if (pitch_ > radians(89.0f))
-        pitch_ = radians(89.0f);
-    if (pitch_ < radians(-89.0f))
-        pitch_ = radians(-89.0f);
+    if (pitch_ > radians(89.0f)) pitch_ = radians(89.0f);
+    if (pitch_ < radians(-89.0f))pitch_ = radians(-89.0f);
 
     // Calcular la posición de la cámara en coordenadas esféricas
     float x = distancia_ * cos(pitch_) * cos(yaw_);
@@ -41,8 +39,6 @@ void CameraSystem::update(glm::vec3 pos_avion, glm::vec3 angulos_avion, const Ca
 
 void CameraSystem::set_viewport(int width, int height)
 {
-    if (height > 0)
-    { // Protegemos el código para evitar dividir por cero si minimizas la ventana
-        data_.projection = perspective(radians(45.0f), (float)width / height, 0.1f, 100.0f);
-    }
+    if (height > 0) data_.projection = perspective(radians(45.0f), (float)width / height, 0.1f, 10000.0f); // Protegemos el código para evitar dividir por cero si minimizas la ventana
+    
 }

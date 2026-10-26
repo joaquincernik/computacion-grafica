@@ -16,6 +16,8 @@
 #include <dlfdm/models/aircraft/jettrainer.h>
 #include <dlfdm/defines.h>
 #include <dlfdm/fdmsolver.h>
+#include "Primitives/Primitives.h"
+#include "Utils/Alturas.h"
 
 using glm::mat4;
 using glm::vec3;
@@ -48,18 +50,30 @@ int main()
 	glfwSwapInterval(1);
 	// glfwSetCursorPosCallback(ctx.window, mouse_callback); si queremos no polling
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
 
 	// -- AERONAVE --
 	Aircraft aircraft;
 	aircraft.init();
 	vector<RenderItem> items;
 
+	// -- TERRENO --
+	Alturas alturas(1337, 0.01f, 800.0f);
+	int N = 400;
+	float step = 50.0f;												  // 400 * 50.0m = 20.000m (20 km de extensión)							  // semilla, frecuencia, amplitud[cite: 2]
+	MeshData terreno_data = primitives::terreno(N, step, alturas); // N=200, step=25.0m
+	// 1. Crear el objeto Mesh vacío
+	Mesh terreno_mesh;
+	// 2. Cargar los datos a la GPU (crea el VAO, VBO y EBO)
+	terreno_mesh.load(terreno_data);
+
 	// -- SHADER --
 	ResourceManager resource_manager("shaders");
 	const ShaderSource &shader_source = resource_manager.load_shader_source("escena", "shader.vert", "shader.frag");
 	Shader shader_program;
-	if (!shader_program.compile_from_source(shader_source.vs, shader_source.fs)) fatal_error("Shader compilation failed!", ctx.window);
-	
+	if (!shader_program.compile_from_source(shader_source.vs, shader_source.fs))
+		fatal_error("Shader compilation failed!", ctx.window);
+
 	// -- CÁMARA --
 	CameraSystem camera_system(kWindowWidth, kWindowHeight);
 	glfwSetWindowUserPointer(ctx.window, &camera_system);
@@ -83,11 +97,10 @@ int main()
 	float last_frame_time = static_cast<float>(glfwGetTime());
 	double acc = 0.0;
 
-	// 3. Bucle principal limpio
 	while (!glfwWindowShouldClose(ctx.window))
 	{
 		double current_frame_time = static_cast<float>(glfwGetTime());
-		double frame_dt = (float) (current_frame_time - last_frame_time);
+		double frame_dt = (float)(current_frame_time - last_frame_time);
 		last_frame_time = current_frame_time;
 
 		input_handler.update(ctx.window, frame_dt);
@@ -116,6 +129,11 @@ int main()
 		shader_program.use();
 		shader_program.set_uniform("uView", camera_system.data().view);
 		shader_program.set_uniform("uProjection", camera_system.data().projection);
+
+		// -- -DIBUJAR TERRENO-- -
+		float medio_ancho = (200 * 25.0f) / 2.0f; // 2500 metros
+		mat4 model_terreno = glm::translate(mat4(1.0f), vec3(-medio_ancho, 3500.0f, -medio_ancho));
+		draw(shader_program, terreno_mesh, model_terreno, vec3(0.2f, 0.5f, 0.2f));
 
 		items.clear();
 		aircraft.update(posicion, angulos);
