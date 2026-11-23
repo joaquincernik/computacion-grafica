@@ -14,4 +14,5 @@ public:
     // Deshabilitar copia
     WindowContext(const WindowContext&) = delete;
     WindowContext& operator=(const WindowContext&) = delete;
+    
 };

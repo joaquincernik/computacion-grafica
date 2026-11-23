@@ -39,7 +39,8 @@ static void fatal_error(const string &error_message, GLFWwindow *window = nullpt
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 static void print_gl_version(void);
 static void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color);
-
+static void enable_wireframe_mode();
+static void enable_fill_mode();
 int main()
 {
 	// 1. El contexto se crea primero
@@ -60,7 +61,8 @@ int main()
 	// -- TERRENO --
 	Alturas alturas(1337, 0.01f, 800.0f);
 	int N = 400;
-	float step = 50.0f;												  // 400 * 50.0m = 20.000m (20 km de extensión)							  // semilla, frecuencia, amplitud[cite: 2]
+	float step = 50.0f;											   // 400 * 50.0m = 20.000m (20 km de extensión)
+	float anchoTotal = N * step;									   // semilla, frecuencia, amplitud[cite: 2]
 	MeshData terreno_data = primitives::terreno(N, step, alturas); // N=200, step=25.0m
 	// 1. Crear el objeto Mesh vacío
 	Mesh terreno_mesh;
@@ -97,6 +99,7 @@ int main()
 	float last_frame_time = static_cast<float>(glfwGetTime());
 	double acc = 0.0;
 
+
 	while (!glfwWindowShouldClose(ctx.window))
 	{
 		double current_frame_time = static_cast<float>(glfwGetTime());
@@ -123,6 +126,7 @@ int main()
 
 		camera_system.update(posicion, angulos, cmd);
 
+		enable_wireframe_mode(); // Modo alambre para ver el terreno
 		glClearColor(51.0f / 255.0f, 55.0f / 255.0f, 76.0f / 255.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -131,8 +135,8 @@ int main()
 		shader_program.set_uniform("uProjection", camera_system.data().projection);
 
 		// -- -DIBUJAR TERRENO-- -
-		float medio_ancho = (200 * 25.0f) / 2.0f; // 2500 metros
-		mat4 model_terreno = glm::translate(mat4(1.0f), vec3(-medio_ancho, 3500.0f, -medio_ancho));
+		// Centrado en X (-10 km a +10 km) y con los 20 km completos por delante en -Z (-20 km a 0 km)
+		mat4 model_terreno = translate(mat4(1.0f), vec3(-anchoTotal / 2.0f, 3500.0f, -anchoTotal)); 
 		draw(shader_program, terreno_mesh, model_terreno, vec3(0.2f, 0.5f, 0.2f));
 
 		items.clear();
@@ -198,4 +202,16 @@ void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const 
 	shader.set_uniform("uColor", color);
 	glBindVertexArray(mesh.vao());
 	glDrawElements(GL_TRIANGLES, mesh.count(), GL_UNSIGNED_INT, nullptr);
+}
+
+// Activar modo de dibujo de líneas
+void enable_wireframe_mode()
+{
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+}
+
+// Activar modo de relleno de polígonos
+void enable_fill_mode()
+{
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
