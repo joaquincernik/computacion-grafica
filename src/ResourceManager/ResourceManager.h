@@ -3,9 +3,18 @@
 #include <string>
 #include <filesystem>
 #include <unordered_map>
+#include <vector>
 #include <fstream>
 #include <sstream>
 #include <iostream>
+
+struct ImageData
+{
+    int width = 0;
+    int height = 0;
+    int channels = 0; // se obtiene del ARCHIVO, informativo
+    std::vector<unsigned char> pixels; // siempre RGBA: 4 bytes por texel
+};
 struct ShaderSource
 {                   // codigo fuente de un programa de shader
     std::string vs; // vertex shader
@@ -23,9 +32,13 @@ public:
     const ShaderSource &get_shader_source(const std::string &key) const;     // referebcia al shader usando su ley
     void clear(void);
 
+    const ImageData& load_image(const std::string& key, const std::string& file, bool flip_vertically);
+    const ImageData& get_image(const std::string& key) const;
+
 private:
     std::filesystem::path assets_root_;                             // ruta base
     std::unordered_map<std::string, ShaderSource> shaders_sources_; // seria como el cache, mantiene relacion de clave, ej "triangulo" con sus shaders cargadis
     std::string read_shader_file(const std::string &shader_file,
                                  const std::string &shader_type);
+    std::unordered_map<std::string, ImageData> images_;
 };
