@@ -1,10 +1,9 @@
 #version 460 core
 
-//in vec3 vNormal;  Recibe la normal interpolada del vertex shader
+in vec3 fColor;
 out vec4 FragColor;
-uniform vec3 uColor;
 
 void main()
 {
-    FragColor = vec4(uColor,1.0);
+    FragColor = vec4(fColor,1.0);
 }

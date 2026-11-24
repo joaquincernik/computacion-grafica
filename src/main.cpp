@@ -19,7 +19,11 @@
 #include "Primitives/Primitives.h"
 #include "Utils/Alturas.h"
 
+using glm::inverse;
+using glm::mat3;
 using glm::mat4;
+using glm::translate;
+using glm::transpose;
 using glm::vec3;
 using std::cerr;
 using std::cout;
@@ -38,8 +42,8 @@ static string glfw_error_str{};
 static void fatal_error(const string &error_message, GLFWwindow *window = nullptr);
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 static void print_gl_version(void);
-static void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color);
 static void enable_wireframe_mode();
+static void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color, const glm::vec3 &ks = vec3(0.0f), float brillo = 1.0f);
 static void enable_fill_mode();
 int main()
 {
@@ -62,7 +66,7 @@ int main()
 	Alturas alturas(1337, 0.01f, 800.0f);
 	int N = 400;
 	float step = 50.0f;											   // 400 * 50.0m = 20.000m (20 km de extensión)
-	float anchoTotal = N * step;									   // semilla, frecuencia, amplitud[cite: 2]
+	float anchoTotal = N * step;								   // semilla, frecuencia, amplitud[cite: 2]
 	MeshData terreno_data = primitives::terreno(N, step, alturas); // N=200, step=25.0m
 	// 1. Crear el objeto Mesh vacío
 	Mesh terreno_mesh;
@@ -75,6 +79,12 @@ int main()
 	Shader shader_program;
 	if (!shader_program.compile_from_source(shader_source.vs, shader_source.fs))
 		fatal_error("Shader compilation failed!", ctx.window);
+
+	// --uniforms de ilumincacion
+	shader_program.use();
+	shader_program.set_uniform("uLuzPos", vec3(5000.0f, 15000.0f, -10000.0f)); // Posición (o dirección) del sol
+	shader_program.set_uniform("uLuzColor", vec3(1.0f, 0.98f, 0.95f));		   // Color/intensidad de la luz
+	shader_program.set_uniform("uAmbiente", vec3(0.25f, 0.25f, 0.30f));
 
 	// -- CÁMARA --
 	CameraSystem camera_system(kWindowWidth, kWindowHeight);
@@ -98,7 +108,7 @@ int main()
 	const double dt = 1.0 / 120.0;
 	float last_frame_time = static_cast<float>(glfwGetTime());
 	double acc = 0.0;
-
+	mat4 model_terreno = translate(mat4(1.0f), vec3(-anchoTotal / 2.0f, 3500.0f, -anchoTotal));
 
 	while (!glfwWindowShouldClose(ctx.window))
 	{
@@ -126,18 +136,25 @@ int main()
 
 		camera_system.update(posicion, angulos, cmd);
 
-		enable_wireframe_mode(); // Modo alambre para ver el terreno
 		glClearColor(51.0f / 255.0f, 55.0f / 255.0f, 76.0f / 255.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		// Uniforms por frame
 		shader_program.use();
-		shader_program.set_uniform("uView", camera_system.data().view);
+		const mat4 &vista = camera_system.data().view;
+		shader_program.set_uniform("uView", vista);
 		shader_program.set_uniform("uProjection", camera_system.data().projection);
 
+		// Posición del ojo extraída de la cuarta columna de la inversa de vista
+		vec3 ojo = vec3(glm::inverse(vista)[3]);
+		shader_program.set_uniform("uOjo", ojo);
+
 		// -- -DIBUJAR TERRENO-- -
-		// Centrado en X (-10 km a +10 km) y con los 20 km completos por delante en -Z (-20 km a 0 km)
-		mat4 model_terreno = translate(mat4(1.0f), vec3(-anchoTotal / 2.0f, 3500.0f, -anchoTotal)); 
-		draw(shader_program, terreno_mesh, model_terreno, vec3(0.2f, 0.5f, 0.2f));
+		// =====================================================================
+		// 3. DIBUJAR OBJETOS (cada uno envía sus propios uniforms de material)
+		// =====================================================================
+		// Terreno: mate (ks = 0) para que no parezca plástico
+		draw(shader_program, terreno_mesh, model_terreno, vec3(0.2f, 0.5f, 0.2f), vec3(0.0f), 1.0f);
 
 		items.clear();
 		aircraft.update(posicion, angulos);
@@ -195,11 +212,20 @@ static void fatal_error(const string &error_message, GLFWwindow *window)
 	exit(EXIT_FAILURE);
 }
 
-void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color)
+void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color, const glm::vec3 &ks, float brillo)
 {
 	shader.use();
+
+	// Transformaciones del objeto y su matriz normal
 	shader.set_uniform("uModel", model);
+	glm::mat3 matNormal = glm::transpose(glm::inverse(glm::mat3(model)));
+	shader.set_uniform("uMatNormal", matNormal);
+
+	// Propiedades del material
 	shader.set_uniform("uColor", color);
+	shader.set_uniform("uKs", ks);
+	shader.set_uniform("uBrillo", brillo);
+
 	glBindVertexArray(mesh.vao());
 	glDrawElements(GL_TRIANGLES, mesh.count(), GL_UNSIGNED_INT, nullptr);
 }
