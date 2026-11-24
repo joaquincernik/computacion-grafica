@@ -165,6 +165,13 @@ void Shader::set_uniform(const std::string &nombre, const glm::vec3 &v) const
     glProgramUniform3fv(id_, loc, 1, &v[0]); // DSA
 }
 
+// necesario para las texturas, necesita flotantes
+void Shader::set_uniform(const std::string &nombre, float f) const
+{
+    const int loc = glGetUniformLocation(id_, nombre.c_str());
+    glProgramUniform1f(id_, loc, f); // DSA
+}
+
 // PRIVADOS
 GLuint Shader::crear_vertex_shader_GPU(const char *vs_code)
 {

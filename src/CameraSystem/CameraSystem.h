@@ -1,3 +1,4 @@
+#pragma once
 #include "CameraSystem/CameraData.h"
 #include "CameraSystem/CameraCommand.h"
 #include <glm/glm.hpp>

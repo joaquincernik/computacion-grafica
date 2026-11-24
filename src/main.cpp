@@ -18,6 +18,8 @@
 #include <dlfdm/fdmsolver.h>
 #include "Primitives/Primitives.h"
 #include "Utils/Alturas.h"
+#include "Texture/texture.h"
+#include <array>
 
 using glm::mat4;
 using glm::vec3;
@@ -54,13 +56,13 @@ int main()
 
 	// -- AERONAVE --
 	Aircraft aircraft;
-	aircraft.init();
+	// aircraft.init();
 	vector<RenderItem> items;
 
 	// -- TERRENO --
 	Alturas alturas(1337, 0.01f, 800.0f);
 	int N = 400;
-	float step = 50.0f;												  // 400 * 50.0m = 20.000m (20 km de extensión)							  // semilla, frecuencia, amplitud[cite: 2]
+	float step = 50.0f;											   // 400 * 50.0m = 20.000m (20 km de extensión)							  // semilla, frecuencia, amplitud[cite: 2]
 	MeshData terreno_data = primitives::terreno(N, step, alturas); // N=200, step=25.0m
 	// 1. Crear el objeto Mesh vacío
 	Mesh terreno_mesh;
@@ -68,11 +70,33 @@ int main()
 	terreno_mesh.load(terreno_data);
 
 	// -- SHADER --
-	ResourceManager resource_manager("shaders");
-	const ShaderSource &shader_source = resource_manager.load_shader_source("escena", "shader.vert", "shader.frag");
+	ResourceManager resource_manager(".");
+	const ShaderSource &shader_source = resource_manager.load_shader_source("escena", "shaders/shader.vert", "shaders/shader.frag");
 	Shader shader_program;
 	if (!shader_program.compile_from_source(shader_source.vs, shader_source.fs))
 		fatal_error("Shader compilation failed!", ctx.window);
+
+	const ShaderSource &terreno_source = resource_manager.load_shader_source("terreno", "shaders/terreno.vert", "shaders/terreno.frag");
+	Shader shader_terreno;
+	if (!shader_terreno.compile_from_source(terreno_source.vs, terreno_source.fs))
+		fatal_error("Terreno shader compilation failed!", ctx.window);
+
+	const ShaderSource &fondo_source = resource_manager.load_shader_source("fondo", "shaders/background.vert", "shaders/background.frag");
+	Shader shader_fondo;
+	if (!shader_fondo.compile_from_source(fondo_source.vs, fondo_source.fs))
+		fatal_error("Fondo shader compilation failed!", ctx.window);
+
+	// -- TEXTURAS --
+	const ImageData &img = resource_manager.load_image("suelo", "src/asssets/texturas/texturas-suelo/suelo/grass.png", true);
+	Texture tex_suelo;
+	tex_suelo.load_2d(img);
+
+	const ImageData &img_prueba = resource_manager.load_image("prueba", "src/asssets/texturas/prueba.png", true);
+	Texture tex_prueba;
+	tex_prueba.load_2d(img_prueba);
+
+	// -- AERONAVE: se arma acá porque init() necesita la textura --
+	aircraft.init(&tex_prueba);
 
 	// -- CÁMARA --
 	CameraSystem camera_system(kWindowWidth, kWindowHeight);
@@ -97,6 +121,26 @@ int main()
 	float last_frame_time = static_cast<float>(glfwGetTime());
 	double acc = 0.0;
 
+	const std::string dir = "src/asssets/texturas/cielo-claros-y-nubes/";
+	std::array<const ImageData *, 6> caras = {
+		&resource_manager.load_image("cielo_right", dir + "right.png", false),
+		&resource_manager.load_image("cielo_left", dir + "left.png", false),
+		&resource_manager.load_image("cielo_top", dir + "top.png", false),
+		&resource_manager.load_image("cielo_bottom", dir + "bottom.png", false),
+		&resource_manager.load_image("cielo_front", dir + "front.png", false),
+		&resource_manager.load_image("cielo_back", dir + "back.png", false),
+	};
+	Texture tex_cielo;
+	tex_cielo.load_cubemap(caras);
+	Mesh cubo_fondo;
+	cubo_fondo.load(primitives::cube(1.0f));
+
+	// u altura_suelo = 3500.0f; // altura del terreno en metros
+	const float altura_terreno = 3500.0f;
+
+	const float teselas = 400.0f;
+
+	// loop
 	while (!glfwWindowShouldClose(ctx.window))
 	{
 		double current_frame_time = static_cast<float>(glfwGetTime());
@@ -126,14 +170,41 @@ int main()
 		glClearColor(51.0f / 255.0f, 55.0f / 255.0f, 76.0f / 255.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+				// -- CIELO (método a: primero, sin escribir profundidad) --
+		const mat4 vista_sin_traslacion = mat4(glm::mat3(camera_system.data().view));
+		glDepthMask(GL_FALSE);
+		glDisable(GL_CULL_FACE);
+		shader_fondo.use();
+		shader_fondo.set_uniform("uProjection", camera_system.data().projection);
+		shader_fondo.set_uniform("uView", vista_sin_traslacion);
+		shader_fondo.set_uniform("uOjo", camera_system.data().eye);
+		shader_fondo.set_uniform("uAlturaSuelo", altura_terreno);
+		shader_fondo.set_uniform("uMetrosTesela", (N * step) / teselas);
+		tex_cielo.bind(0);   // samplerCube uCielo        (binding = 0)
+		tex_suelo.bind(1);   // sampler2D   uTexturaSuelo (binding = 1)
+		glBindVertexArray(cubo_fondo.vao());
+
+		shader_fondo.set_uniform("uOjo", camera_system.data().eye);// (C)
+		glDrawElements(GL_TRIANGLES, cubo_fondo.count(), GL_UNSIGNED_INT, nullptr);
+		glDepthMask(GL_TRUE);
+		glEnable(GL_CULL_FACE);
+
 		shader_program.use();
 		shader_program.set_uniform("uView", camera_system.data().view);
 		shader_program.set_uniform("uProjection", camera_system.data().projection);
+		shader_program.set_uniform("uLightDir", glm::normalize(vec3(0.4f, 1.0f, 0.3f)));
 
 		// -- -DIBUJAR TERRENO-- -
-		float medio_ancho = (200 * 25.0f) / 2.0f; // 2500 metros
-		mat4 model_terreno = glm::translate(mat4(1.0f), vec3(-medio_ancho, 3500.0f, -medio_ancho));
-		draw(shader_program, terreno_mesh, model_terreno, vec3(0.2f, 0.5f, 0.2f));
+		shader_terreno.set_uniform("uView", camera_system.data().view);				// (A)
+		shader_terreno.set_uniform("uProjection", camera_system.data().projection); // (A)
+		shader_terreno.set_uniform("uTeselas", teselas);								// (B)
+		tex_suelo.bind(0);			
+		
+		
+
+		float medio_ancho = (N * step) / 2.0f; // (D)
+		mat4 model_terreno = glm::translate(mat4(1.0f), vec3(-medio_ancho, altura_terreno, -medio_ancho));
+		draw(shader_terreno, terreno_mesh, model_terreno, vec3(0.2f, 0.5f, 0.2f)); // (E)
 
 		items.clear();
 		aircraft.update(posicion, angulos);
@@ -141,7 +212,16 @@ int main()
 
 		for (const RenderItem &item : items)
 		{
-			draw(shader_program, *item.mesh, item.model, glm::vec3(item.color));
+			if (item.texture != nullptr)
+			{
+				item.texture->bind(0);						  // la letra en la unidad 0
+				shader_terreno.set_uniform("uTeselas", 1.0f); // una sola vez por cara
+				draw(shader_terreno, *item.mesh, item.model, glm::vec3(item.color));
+			}
+			else
+			{
+				draw(shader_program, *item.mesh, item.model, glm::vec3(item.color));
+			}
 		}
 
 		glfwSwapBuffers(ctx.window);

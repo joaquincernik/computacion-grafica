@@ -1,77 +1,115 @@
 // Aircraft.cpp
 #include "Aircraft.h"
-#include "ObjLoader/ObjLoader.h"
+#include "Primitives/Primitives.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include "Utils/Colors.h"
-#include <cfloat>   // FLT_MAX
-#include <cstdlib>  // exit
-#include <iostream>
 
 using glm::mat4;
 using glm::vec3;
 using std::move;
 using std::vector;
 
-static const char *kModeloPath = "src/asssets/avion.obj"; // relativo a la raiz del repo
-static constexpr float kLargoAvion = 2.0f;                // largo final en unidades de escena
-
-void Aircraft::init()
+void Aircraft::init(const Texture *textura)
 {
     piezas_.clear();
     locales_.clear();
     colores_.clear();
-    reference_point_ = vec3(0.0f); // la matriz local ya deja el modelo centrado en el origen
+    texturas_.clear();
+    reference_point_ = glm::vec3(0.0f, 0.0f, 1.1f);
+    const float radio_fuselaje = 0.2f;
+    const float largo_fuselaje = 2.0f;
 
-    // Versiones "en tierra" de piezas que el archivo trae duplicadas (se dibujarian superpuestas).
-    MeshData data = load_obj(kModeloPath, {"Landing_gear_down", "Doors_open", "Flaps_down", "slots_down"});
-    if (data.vertices.empty())
-    {
-        std::cerr << "[Aircraft ERROR] No se pudo cargar el modelo: " << kModeloPath << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
+    const vec3 eje_x = vec3(1.0f, 0.0f, 0.0f);
+    const vec3 dimensiones_ala = vec3(1.25f, 0.05f, 0.7f);
+    const vec3 dimensiones_aleta = vec3(0.5f, 0.05f, 0.4f);
 
-    // Bounding box: ANTES de load_mesh, despues los vertices viven en la GPU.
-    vec3 mn(FLT_MAX), mx(-FLT_MAX);
-    for (const Vertex &v : data.vertices)
-    {
-        mn = glm::min(mn, v.position);
-        mx = glm::max(mx, v.position);
-    }
-    const vec3 centro = (mn + mx) * 0.5f;
-    const float escala = kLargoAvion / (mx.z - mn.z);
+    const float posicion_ala_izq = -0.65f;
+    const float posicion_aleta_izq = 0.35f;
+    const float final_z = 2.0f; // z final del fuselaje, para ubicar las aletas y el timón
 
-    // Mlocal = R_y(180) * S * T(-centro): centrar, escalar y girar la nariz de +Z a -Z.
-    mat4 local = glm::rotate(mat4(1.0f), glm::radians(180.0f), vec3(0.0f, 1.0f, 0.0f));
-    local = glm::scale(local, vec3(escala));
-    local = glm::translate(local, -centro);
 
-    load_mesh(data);
-    locales_.push_back(local);
+    // carga de primitivas en mesh
+    load_mesh(primitives::cylinder(radio_fuselaje, largo_fuselaje, 32));
+    load_mesh(primitives::cube(1.0f));
+    load_mesh(primitives::cone(radio_fuselaje, glm::radians(45.0f), 32));
+
+    // --- 1. NARIZ (Cono) ---
+    mat4 local_nariz = glm::translate(mat4(1.0f), vec3(0.0f, 0.0f, 0.2f));
+    local_nariz = glm::rotate(local_nariz, glm::radians(-90.0f), eje_x);
+    locales_.push_back(local_nariz);
+    colores_.push_back(Colors::get("red"));
+    texturas_.push_back(textura);
+
+    // 2 - FUSELAJE
+    mat4 local_fuselaje = glm::translate(mat4(1.0f), vec3(0.0f, 0.0f, 0.2f));
+    local_fuselaje = glm::rotate(local_fuselaje, glm::radians(90.0f), eje_x);
+    locales_.push_back(local_fuselaje);
     colores_.push_back(Colors::get("gray"));
+    texturas_.push_back(textura);
+
+    // --- 3. CUBO reutilizado para alas y cola ---
+    mat4 local_ala_izq = glm::translate(mat4(1.0f), vec3(posicion_ala_izq, -0.12f, 1.0f));
+    local_ala_izq = glm::scale(local_ala_izq, dimensiones_ala);
+    locales_.push_back(local_ala_izq);
+    colores_.push_back(Colors::get("green"));
+    texturas_.push_back(textura);
+
+    mat4 local_ala_der = glm::translate(mat4(1.0f), vec3(-posicion_ala_izq, -0.12f, 1.0f));
+    local_ala_der = glm::scale(local_ala_der, dimensiones_ala);
+    locales_.push_back(local_ala_der);
+    colores_.push_back(Colors::get("green"));
+    texturas_.push_back(textura);
+
+    // aletas
+    mat4 local_aleta_izq = glm::translate(mat4(1.0f), vec3(-posicion_aleta_izq, 0.0f, final_z));
+    local_aleta_izq = glm::scale(local_aleta_izq, dimensiones_aleta);
+    locales_.push_back(local_aleta_izq);
+    colores_.push_back(Colors::get("blue"));
+    texturas_.push_back(textura);
+
+    mat4 local_aleta_der = glm::translate(mat4(1.0f), vec3(posicion_aleta_izq, 0.0f, final_z));
+    local_aleta_der = glm::scale(local_aleta_der, dimensiones_aleta);
+    locales_.push_back(local_aleta_der);
+    colores_.push_back(Colors::get("blue"));
+    texturas_.push_back(textura);
+
+    // Timon vertical
+    mat4 local_timon = glm::translate(mat4(1.0f), vec3(0.0f, 0.50f, final_z));
+    local_timon = glm::scale(local_timon, vec3(0.05f, 0.7f, 0.35f));
+    locales_.push_back(local_timon);
+    colores_.push_back(Colors::get("blue"));
+    texturas_.push_back(textura);
 }
 
 void Aircraft::collect(vector<RenderItem> &items) const
 {
-    // piezas_[i], locales_[i] y colores_[i] describen la misma pieza.
-    for (size_t i = 0; i < piezas_.size(); ++i)
+
+    //   0 fuso, 1 nariz, 2 ala izq, 3 ala der, 4 aleta izq, 5 aleta der, 6 timon
+    const size_t mapa_mallas[] = {2, 0, 1, 1, 1, 1, 1};
+    const size_t n_items = locales_.size();
+
+    for (size_t i = 0; i < n_items; ++i)
     {
+        if (i >= 7)
+            break; // el mapa solo cubre las 7 piezas actuales
+
         RenderItem item;
-        item.mesh = &piezas_[i];
         item.model = pose_ * locales_[i];
         item.color = colores_[i];
+        item.texture = texturas_[i];
+        item.mesh = &piezas_[mapa_mallas[i]];
         items.push_back(item);
     }
 }
 
 void Aircraft::update(vec3 pos, vec3 angulos)
 {
-    // angulos = (phi, theta, psi) en radianes, ya en ejes GL (ver to_world()).
-    // Mpose = T(pos) * R_y(psi) * R_x(theta) * R_z(phi) * T(-ref)
-    mat4 pose = glm::translate(mat4(1.0f), pos);                  // T(pos)
-    pose = glm::rotate(pose, angulos.z, vec3(0.0f, 1.0f, 0.0f)); // yaw   (psi)   sobre Y
-    pose = glm::rotate(pose, angulos.y, vec3(1.0f, 0.0f, 0.0f)); // pitch (theta) sobre X
-    pose = glm::rotate(pose, angulos.x, vec3(0.0f, 0.0f, 1.0f)); // roll  (phi)   sobre Z
-    pose = glm::translate(pose, -reference_point_);              // T(-ref)
+    // Mpose = T(pos) * R(roll)*R(pitch)*R(yaw) * T(-ref)
+    mat4 pose = glm::translate(mat4(1.0f), pos);                               // T(pos)
+    pose = glm::rotate(pose, glm::radians(angulos.y), vec3(0.0f, 1.0f, 0.0f)); // yaw (Y)
+    pose = glm::rotate(pose, glm::radians(angulos.x), vec3(1.0f, 0.0f, 0.0f)); // pitch (X)
+    pose = glm::rotate(pose, glm::radians(angulos.z), vec3(0.0f, 0.0f, 1.0f)); // roll (Z)
+    pose = glm::translate(pose, -reference_point_);                            // T(-ref)
     pose_ = pose;
 }
 
