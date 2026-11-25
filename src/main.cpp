@@ -23,6 +23,8 @@
 
 using glm::mat4;
 using glm::vec3;
+using glm::mat3;
+using std::array;
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -41,6 +43,9 @@ static void fatal_error(const string &error_message, GLFWwindow *window = nullpt
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 static void print_gl_version(void);
 static void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color);
+static void enable_wireframe_mode();
+static void enable_fill_mode();
+static array<const ImageData *, 6> cargar_caras_cubemap(ResourceManager &rm, const string &directorio, const string &prefijo_clave = "cielo", const string &extension = ".png");
 
 int main()
 {
@@ -56,7 +61,7 @@ int main()
 
 	// -- AERONAVE --
 	Aircraft aircraft;
-	// aircraft.init();
+	aircraft.init();
 	vector<RenderItem> items;
 
 	// -- TERRENO --
@@ -64,39 +69,42 @@ int main()
 	int N = 400;
 	float step = 50.0f;											   // 400 * 50.0m = 20.000m (20 km de extensión)							  // semilla, frecuencia, amplitud[cite: 2]
 	MeshData terreno_data = primitives::terreno(N, step, alturas); // N=200, step=25.0m
-	// 1. Crear el objeto Mesh vacío
 	Mesh terreno_mesh;
-	// 2. Cargar los datos a la GPU (crea el VAO, VBO y EBO)
 	terreno_mesh.load(terreno_data);
 
 	// -- SHADER --
-	ResourceManager resource_manager(".");
-	const ShaderSource &shader_source = resource_manager.load_shader_source("escena", "shaders/shader.vert", "shaders/shader.frag");
+	ResourceManager resource_shaders_manager("shaders");
+	// escena shader
+	const ShaderSource &shader_source = resource_shaders_manager.load_shader_source("escena", "shader.vert", "shader.frag");
 	Shader shader_program;
 	if (!shader_program.compile_from_source(shader_source.vs, shader_source.fs))
 		fatal_error("Shader compilation failed!", ctx.window);
 
-	const ShaderSource &terreno_source = resource_manager.load_shader_source("terreno", "shaders/terreno.vert", "shaders/terreno.frag");
+	// terreno shader
+	const ShaderSource &terreno_source = resource_shaders_manager.load_shader_source("terreno", "terreno.vert", "terreno.frag");
 	Shader shader_terreno;
 	if (!shader_terreno.compile_from_source(terreno_source.vs, terreno_source.fs))
 		fatal_error("Terreno shader compilation failed!", ctx.window);
 
-	const ShaderSource &fondo_source = resource_manager.load_shader_source("fondo", "shaders/background.vert", "shaders/background.frag");
+	// background shader
+	const ShaderSource &fondo_source = resource_shaders_manager.load_shader_source("fondo", "background.vert", "background.frag");
 	Shader shader_fondo;
 	if (!shader_fondo.compile_from_source(fondo_source.vs, fondo_source.fs))
 		fatal_error("Fondo shader compilation failed!", ctx.window);
 
 	// -- TEXTURAS --
-	const ImageData &img = resource_manager.load_image("suelo", "src/asssets/texturas/texturas-suelo/suelo/grass.png", true);
+	ResourceManager resource_textures_manager("src/asssets/texturas");
+	const ImageData &img = resource_textures_manager.load_image("suelo", "texturas-suelo/suelo/grass.png", true);
 	Texture tex_suelo;
 	tex_suelo.load_2d(img);
 
-	const ImageData &img_prueba = resource_manager.load_image("prueba", "src/asssets/texturas/prueba.png", true);
-	Texture tex_prueba;
-	tex_prueba.load_2d(img_prueba);
+	//armamos cielo
+	auto caras = cargar_caras_cubemap(resource_textures_manager, "cielo-claros-y-nubes/");
+	Texture tex_cielo;
+	tex_cielo.load_cubemap(caras);
+	Mesh cubo_fondo;
+	cubo_fondo.load(primitives::cube(1.0f));
 
-	// -- AERONAVE: se arma acá porque init() necesita la textura --
-	aircraft.init(&tex_prueba);
 
 	// -- CÁMARA --
 	CameraSystem camera_system(kWindowWidth, kWindowHeight);
@@ -117,28 +125,15 @@ int main()
 	vec3 posicion(0.0f);
 	vec3 angulos(-20.0f, -40.0f, 0.0f);
 
+	// -- PARAMETROS DE ESCENA --
+	const float altura_terreno = 3500.0f;
+	const float teselas = 400.0f;
+	float medio_ancho = (N * step) / 2.0f; // (D)
+
+
 	const double dt = 1.0 / 120.0;
 	float last_frame_time = static_cast<float>(glfwGetTime());
 	double acc = 0.0;
-
-	const std::string dir = "src/asssets/texturas/cielo-claros-y-nubes/";
-	std::array<const ImageData *, 6> caras = {
-		&resource_manager.load_image("cielo_right", dir + "right.png", false),
-		&resource_manager.load_image("cielo_left", dir + "left.png", false),
-		&resource_manager.load_image("cielo_top", dir + "top.png", false),
-		&resource_manager.load_image("cielo_bottom", dir + "bottom.png", false),
-		&resource_manager.load_image("cielo_front", dir + "front.png", false),
-		&resource_manager.load_image("cielo_back", dir + "back.png", false),
-	};
-	Texture tex_cielo;
-	tex_cielo.load_cubemap(caras);
-	Mesh cubo_fondo;
-	cubo_fondo.load(primitives::cube(1.0f));
-
-	// u altura_suelo = 3500.0f; // altura del terreno en metros
-	const float altura_terreno = 3500.0f;
-
-	const float teselas = 400.0f;
 
 	// loop
 	while (!glfwWindowShouldClose(ctx.window))
@@ -170,8 +165,8 @@ int main()
 		glClearColor(51.0f / 255.0f, 55.0f / 255.0f, 76.0f / 255.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-				// -- CIELO (método a: primero, sin escribir profundidad) --
-		const mat4 vista_sin_traslacion = mat4(glm::mat3(camera_system.data().view));
+		// -- CIELO (método a: primero, sin escribir profundidad) --
+		const mat4 vista_sin_traslacion = mat4(mat3(camera_system.data().view));
 		glDepthMask(GL_FALSE);
 		glDisable(GL_CULL_FACE);
 		shader_fondo.use();
@@ -180,30 +175,27 @@ int main()
 		shader_fondo.set_uniform("uOjo", camera_system.data().eye);
 		shader_fondo.set_uniform("uAlturaSuelo", altura_terreno);
 		shader_fondo.set_uniform("uMetrosTesela", (N * step) / teselas);
-		tex_cielo.bind(0);   // samplerCube uCielo        (binding = 0)
-		tex_suelo.bind(1);   // sampler2D   uTexturaSuelo (binding = 1)
+		tex_cielo.bind(0); // samplerCube uCielo        (binding = 0)
+		tex_suelo.bind(1); // sampler2D   uTexturaSuelo (binding = 1)
 		glBindVertexArray(cubo_fondo.vao());
-
-		shader_fondo.set_uniform("uOjo", camera_system.data().eye);// (C)
 		glDrawElements(GL_TRIANGLES, cubo_fondo.count(), GL_UNSIGNED_INT, nullptr);
 		glDepthMask(GL_TRUE);
 		glEnable(GL_CULL_FACE);
 
+		//shader escena
 		shader_program.use();
 		shader_program.set_uniform("uView", camera_system.data().view);
 		shader_program.set_uniform("uProjection", camera_system.data().projection);
-		shader_program.set_uniform("uLightDir", glm::normalize(vec3(0.4f, 1.0f, 0.3f)));
+		shader_program.set_uniform("uLightDir", normalize(vec3(0.4f, 1.0f, 0.3f)));
 
 		// -- -DIBUJAR TERRENO-- -
+		shader_terreno.use();
 		shader_terreno.set_uniform("uView", camera_system.data().view);				// (A)
 		shader_terreno.set_uniform("uProjection", camera_system.data().projection); // (A)
-		shader_terreno.set_uniform("uTeselas", teselas);								// (B)
-		tex_suelo.bind(0);			
-		
-		
+		shader_terreno.set_uniform("uTeselas", teselas);							// (B)
+		tex_suelo.bind(0);
 
-		float medio_ancho = (N * step) / 2.0f; // (D)
-		mat4 model_terreno = glm::translate(mat4(1.0f), vec3(-medio_ancho, altura_terreno, -medio_ancho));
+		mat4 model_terreno = translate(mat4(1.0f), vec3(-medio_ancho, altura_terreno, -medio_ancho));
 		draw(shader_terreno, terreno_mesh, model_terreno, vec3(0.2f, 0.5f, 0.2f)); // (E)
 
 		items.clear();
@@ -278,4 +270,44 @@ void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const 
 	shader.set_uniform("uColor", color);
 	glBindVertexArray(mesh.vao());
 	glDrawElements(GL_TRIANGLES, mesh.count(), GL_UNSIGNED_INT, nullptr);
+}
+// Activar modo de dibujo de líneas
+void enable_wireframe_mode()
+{
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+}
+
+// Activar modo de relleno de polígonos
+void enable_fill_mode()
+{
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
+// esto es principalmente para que no quede esto en el main
+/*const std::string dir = "src/asssets/texturas/cielo-claros-y-nubes/";
+	std::array<const ImageData *, 6> caras = {
+		&resource_manager.load_image("cielo_right", dir + "right.png", false),
+		&resource_manager.load_image("cielo_left", dir + "left.png", false),
+		&resource_manager.load_image("cielo_top", dir + "top.png", false),
+		&resource_manager.load_image("cielo_bottom", dir + "bottom.png", false),
+		&resource_manager.load_image("cielo_front", dir + "front.png", false),
+		&resource_manager.load_image("cielo_back", dir + "back.png", false),
+	};*/
+array<const ImageData *, 6> cargar_caras_cubemap(
+    ResourceManager &rm,
+    const string &directorio,
+    const string &prefijo_clave,
+    const string &extension)
+{
+	static const array<const char *, 6> nombres = {
+		"right", "left", "top", "bottom", "front", "back"};
+
+	array<const ImageData *, 6> caras{};
+	for (size_t i = 0; i < 6; ++i)
+	{
+		string clave = prefijo_clave + "_" + nombres[i];
+		string ruta = directorio + nombres[i] + extension;
+		caras[i] = &rm.load_image(clave, ruta, false);
+	}
+	return caras;
 }
