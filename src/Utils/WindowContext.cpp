@@ -8,6 +8,9 @@ WindowContext::WindowContext(int width, int height, const char *title)
     glfwSetErrorCallback([](int error, const char *description)
                          { std::cerr << "GLFW Error " << error << ": " << description << std::endl; });
 
+    // libdecor carga GTK, que aborta en GNOME recientes (falta la clave xsettings 'antialiasing').
+    glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
+
     if (!glfwInit())
     {
         std::cerr << "Failed to initialize GLFW" << std::endl;

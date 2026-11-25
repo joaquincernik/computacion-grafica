@@ -3,9 +3,12 @@
 #include <glm/glm.hpp>
 #include <Mesh/Mesh.h>
 
+class Texture;
+
 struct RenderItem
 {
-    const Mesh *mesh = nullptr;        // malla a dibujar (referencia, no es propia)
-    glm::mat4 model = glm::mat4(1.0f); // transformacion modelo -> mundo, YA compuesta
+    const Mesh *mesh = nullptr;
+    glm::mat4 model = glm::mat4(1.0f);
     glm::vec4 color = glm::vec4(1.0f);
+    const Texture *texture = nullptr;  // nullptr = color plano
 };

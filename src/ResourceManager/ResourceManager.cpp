@@ -1,4 +1,6 @@
 #include "ResourceManager.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "Utils/stb_image.h"
 
 using std::cerr;
 using std::cout;
@@ -9,6 +11,8 @@ using std::ifstream;
 using std::string;
 using std::stringstream;
 
+static const ImageData empty_image = {0, 0, 0, {}};
+
 ResourceManager::ResourceManager(const path& assets_root) {
     assets_root_ = assets_root; // constructor, en .h solo declaramos que existe su conttructor
 }
@@ -18,7 +22,7 @@ string ResourceManager::read_shader_file(const string& shader_file,
     if (shader_file.empty()) {
         return "";
     }
-
+    
     // Construimos la ruta combinando la raíz de assets con el archivo dado
     path full_path = assets_root_ / shader_file;
 
@@ -84,4 +88,54 @@ const ShaderSource& ResourceManager::get_shader_source(const string& key) const 
 
 void ResourceManager::clear(void) {
     shaders_sources_.clear();
+    images_.clear();
+}
+
+const ImageData& ResourceManager::load_image(const string& key, const string& file, bool flip_vertically) {
+    // 1. Caché: buscar key en images_; si está, devolver it->second
+    auto it = images_.find(key);
+    if (it != images_.end()) {
+        return it->second;
+    }
+    // 2. Armar full_path = assets_root_ / file y verificar exists() (como en read_shader_file)
+    path full_path = assets_root_ / file;
+    if (!exists(full_path)) {
+        cerr << "[ResourceManager ERROR] El archivo de imagen no existe: " << full_path << endl;
+        return empty_image;
+    }
+    // 3. stbi_set_flip_vertically_on_load(flip_vertically);   // es GLOBAL: fijarlo siempre
+    // dar vuelta vertical a la imagen al cargarla, porque OpenGL tiene el origen en la esquina inferior izquierda,
+    // mientras que la mayoría de las imágenes tienen el origen en la esquina superior izquierda. Esto asegura que 
+    // la imagen se cargue correctamente para su uso en OpenGL.
+    stbi_set_flip_vertically_on_load(flip_vertically); 
+    // 4. Decodificar:
+    int w, h, canales;
+    unsigned char* datos = stbi_load(full_path.string().c_str(), &w, &h, &canales, 4);
+    if (datos == nullptr) {
+        cerr << "[ResourceManager ERROR] Error al cargar la imagen: " << stbi_failure_reason() << endl;
+        return empty_image;
+    }
+
+    // 5. Llenar un ImageData: width, height, channels, y
+    ImageData img;
+    img.width    = w;
+    img.height   = h;
+    img.channels = canales;
+    img.pixels.assign(datos, datos + w * h * 4);
+    // 6. stb reservó con malloc, lo liberás vos
+    stbi_image_free(datos);
+    // 7. Guardar en images_[key] y devolver images_[key]
+    images_[key] = std::move(img);
+    return images_[key];
+}
+
+const ImageData& ResourceManager::get_image(const string& key) const {
+    // igual que get_shader_source: find, y si no está -> cerr + static const ImageData vacía
+    auto it = images_.find(key);
+    if (it == images_.end()) {
+        cerr << "[ResourceManager ERROR] No se encontro el recurso con la clave: " << key << endl;
+        static const ImageData empty_image = {0, 0, 0, {}};
+        return empty_image;
+    }
+    return it->second;
 }

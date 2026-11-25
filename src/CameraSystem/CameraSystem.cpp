@@ -35,6 +35,7 @@ void CameraSystem::update(glm::vec3 pos_avion, glm::vec3 angulos_avion, const Ca
 
     // Calcular la matriz de vista usando lookAt
     data_.view = lookAt(eye, pos_avion, eje_y);
+    data_.eye = eye;
 };
 
 void CameraSystem::set_viewport(int width, int height)

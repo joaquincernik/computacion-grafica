@@ -174,6 +174,7 @@ void Shader::set_uniform(const std::string &nombre, const glm::mat3 &m) const
 {
     glProgramUniformMatrix3fv(id_, glGetUniformLocation(id_, nombre.c_str()), 1, GL_FALSE, &m[0][0]);
 }
+
 // PRIVADOS
 GLuint Shader::crear_vertex_shader_GPU(const char *vs_code)
 {
