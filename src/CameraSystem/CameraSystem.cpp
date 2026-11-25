@@ -1,5 +1,6 @@
 #include "CameraSystem.h"
 #include <glm/gtc/matrix_transform.hpp>
+#include <iostream>
 
 using namespace glm;
 
@@ -13,21 +14,45 @@ const CameraData &CameraSystem::data() const
     return data_;
 }
 
-void CameraSystem::update(glm::vec3 pos_avion, glm::vec3 angulos_avion, const CameraCommand &cmd)
+void CameraSystem::update(glm::vec3 pos_avion, glm::vec3 angulos_avion, const CameraCommand &cmd, float dt)
 {
     // Actualizar el estado de la cámara según los comandos recibidos
-    yaw_ += cmd.yaw_delta;
-    pitch_ += cmd.pitch_delta;
+    bool moviendo = (cmd.yaw_delta != 0.0f || cmd.pitch_delta != 0.0f);
+
+    if (moviendo)
+    {
+        yaw_ += cmd.yaw_delta;
+        pitch_ += cmd.pitch_delta;
+        quieto_ = 0.0f;
+    }
+    else
+    {
+        quieto_ += dt;
+        if (quieto_ > espera_retorno_)
+        {
+            float k = glm::min(1.0f, velocidad_retorno_ * dt);
+            yaw_ -= yaw_ * k;
+            pitch_ -= pitch_ * k;
+        }
+    }
     distancia_ += cmd.dist_delta;
 
-    // Limitar el pitch para evitar que la cámara se voltee
-    if (pitch_ > radians(89.0f)) pitch_ = radians(89.0f);
-    if (pitch_ < radians(-89.0f))pitch_ = radians(-89.0f);
+    float theta = angulos_avion.y; // cabeceo
+    float psi = angulos_avion.z;   // rumbo
 
-    // Calcular la posición de la cámara en coordenadas esféricas
-    float x = distancia_ * cos(pitch_) * cos(yaw_);
-    float y = distancia_ * sin(pitch_);
-    float z = distancia_ * cos(pitch_) * sin(yaw_);
+    vec3 adelante(-sin(psi) * cos(theta),
+                  sin(theta),
+                  -cos(psi) * cos(theta));
+
+    float yaw_base = radians(90.0f) - psi; // detrás del avión
+    float pitch_base = radians(10.0f);     // un poco desde arriba
+
+    float yaw_total = yaw_base + yaw_;
+    float pitch_total = clamp(pitch_base + pitch_, radians(-89.0f), radians(89.0f));
+
+    float x = distancia_ * cos(pitch_total) * cos(yaw_total);
+    float y = distancia_ * sin(pitch_total);
+    float z = distancia_ * cos(pitch_total) * sin(yaw_total);
 
     // Establecer la posición de la cámara relativa al avión
     vec3 eye = pos_avion + vec3(x, y, z);
@@ -40,6 +65,6 @@ void CameraSystem::update(glm::vec3 pos_avion, glm::vec3 angulos_avion, const Ca
 
 void CameraSystem::set_viewport(int width, int height)
 {
-    if (height > 0) data_.projection = perspective(radians(45.0f), (float)width / height, 0.1f, 10000.0f); // Protegemos el código para evitar dividir por cero si minimizas la ventana
-    
+    if (height > 0)
+        data_.projection = perspective(radians(45.0f), (float)width / height, 0.1f, 10000.0f); // Protegemos el código para evitar dividir por cero si minimizas la ventana
 }
