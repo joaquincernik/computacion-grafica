@@ -23,7 +23,7 @@ public:
     void set_uniform(const std::string &nombre, const glm::mat4 &m) const;
     void set_uniform(const std::string &nombre, const glm::vec3 &v) const;
     void set_uniform(const std::string &nombre, float value) const;
-    void set_uniform(const std::string &nombre, const glm::mat3 &m) const; // Por si aún no la agregaste
+    void set_uniform(const std::string &nombre, const glm::mat3 &m) const; 
 
 private:
     GLuint crear_vertex_shader_GPU(const char *vs_code);

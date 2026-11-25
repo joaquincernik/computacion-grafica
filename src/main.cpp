@@ -31,6 +31,7 @@ using std::endl;
 using std::min;
 using std::string;
 using std::vector;
+using glm::vec4;
 
 static const char *kWindowTitle = "OpenGL - Primitiva Cubo";
 static constexpr int kWindowWidth = 800;
@@ -218,7 +219,7 @@ void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const 
 
 	// Transformaciones del objeto y su matriz normal
 	shader.set_uniform("uModel", model);
-	glm::mat3 matNormal = glm::transpose(glm::inverse(glm::mat3(model)));
+	mat3 matNormal = glm::transpose(inverse(mat3(model)));
 	shader.set_uniform("uMatNormal", matNormal);
 
 	// Propiedades del material

@@ -1,7 +1,7 @@
 #version 460 core
 
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormal; // Atributo de la normal que viene de la malla
+layout (location = 0) in vec3 vertexPos;
+layout (location = 1) in vec3 vertexNormal; // Atributo de la normal que viene de la malla
 
 out vec3 fColor; // Color iluminado que se interpolará entre vértices
 
@@ -44,12 +44,12 @@ vec3 phong(vec3 P, vec3 N)
 
 void main()
 {
-    vec4 pm = uModel * vec4(aPos, 1.0);
-    vec3 N = normalize(uMatNormal * aNormal);
+    vec4 wc_point = uModel * vec4(vertexPos, 1.0); // aca tomamos el punto local y lo ubicamos en world
+    vec3 N = normalize(uMatNormal * vertexNormal); //esto pasa la normal a wc
 
-    fColor = phong(pm.xyz, N);
+    fColor = phong(wc_point.xyz, N);
 
-    gl_Position = uProjection * uView * pm;
+    gl_Position = uProjection * uView * wc_point;
 
     
 }
