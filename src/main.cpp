@@ -208,11 +208,11 @@ int main()
 			{
 				item.texture->bind(0);						  // la letra en la unidad 0
 				shader_terreno.set_uniform("uTeselas", 1.0f); // una sola vez por cara
-				draw(shader_terreno, *item.mesh, item.model, glm::vec3(item.color));
+				draw(shader_terreno, *item.mesh, item.model, vec3(item.color));
 			}
 			else
 			{
-				draw(shader_program, *item.mesh, item.model, glm::vec3(item.color));
+				draw(shader_program, *item.mesh, item.model, vec3(item.color));
 			}
 		}
 
@@ -263,7 +263,7 @@ static void fatal_error(const string &error_message, GLFWwindow *window)
 	exit(EXIT_FAILURE);
 }
 
-void draw(const Shader &shader, const Mesh &mesh, const glm::mat4 &model, const glm::vec3 &color)
+void draw(const Shader &shader, const Mesh &mesh, const mat4 &model, const vec3 &color)
 {
 	shader.use();
 	shader.set_uniform("uModel", model);
