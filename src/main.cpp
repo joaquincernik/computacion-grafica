@@ -152,7 +152,11 @@ int main()
 	const double dt = 1.0 / 120.0;
 	float last_frame_time = static_cast<float>(glfwGetTime());
 	double acc = 0.0;
+	
 	mat4 model_terreno = translate(mat4(1.0f), vec3(-medio_ancho, altura_terreno, -medio_ancho));
+	Material mat_terreno{vec3(1.0f), vec3(0.0f), 1.0f};
+	
+	
 	const ShaderSource &hud_source = resource_shaders_manager.load_shader_source("hud", "hud.vert", "hud.frag");
 	Shader shader_hud;
 	if (!shader_hud.compile_from_source(hud_source.vs, hud_source.fs))
@@ -243,9 +247,8 @@ int main()
 		shader_terreno.set_uniform("uUsarGamma", gamma_activo);
 		tex_suelo.bind(0);
 
-		Material mat_terreno{glm::vec3(1.0f), glm::vec3(0.0f), 1.0f};
-		Material mat_aro{vec3(1.0f, 0.6f, 0.0f), vec3(0.3f), 16.0f};
 		draw(shader_terreno, terreno_mesh, model_terreno, mat_terreno); // (E)
+		Material mat_aro{vec3(1.0f, 0.6f, 0.0f), vec3(0.3f), 16.0f};
 
 		items.clear();
 		aircraft.update(posicion, angulos);
