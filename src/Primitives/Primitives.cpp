@@ -150,6 +150,39 @@ namespace primitives
         return data;
     }
 
+    MeshData disco(float radio, unsigned gajos)
+    {
+        MeshData data;
+        const float PI = glm::pi<float>();
+
+        data.vertices.reserve(gajos + 2);
+        data.indices.reserve(gajos * 3);
+
+        // centro del abanico
+        Vertex centro;
+        centro.position = {0.0f, 0.0f, 0.0f};
+        centro.normal = {0.0f, 0.0f, 1.0f};
+        centro.tex_coords = {0.5f, 0.5f};
+        data.vertices.push_back(centro);
+
+        // borde en el plano XY (como el toro): el ultimo repite el primero para cerrar
+        for (unsigned i = 0; i <= gajos; ++i)
+        {
+            const float th = 2.0f * PI * float(i) / float(gajos);
+            Vertex v;
+            v.position = {radio * cos(th), radio * sin(th), 0.0f};
+            v.normal = {0.0f, 0.0f, 1.0f};
+            v.tex_coords = {0.5f + 0.5f * cos(th), 0.5f + 0.5f * sin(th)}; // disco -> cuadrado [0,1]
+            data.vertices.push_back(v);
+        }
+
+        // un triangulo por gajo: centro (0) + dos vertices consecutivos del borde
+        for (unsigned i = 0; i < gajos; ++i)
+            data.indices.insert(data.indices.end(), {0U, i + 1, i + 2});
+
+        return data;
+    }
+
     MeshData cone(float radio, float conicidad, unsigned gajos, unsigned anillos)
     {
         MeshData data;

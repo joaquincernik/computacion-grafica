@@ -1,10 +1,12 @@
 #include "InputHandler.h"
 #include <algorithm>
+#include <cmath> // remainder
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 
 const float ELEV_RANGO = glm::radians(5.0f);
 const float ALERON_MAX = glm::radians(20.0f);
-const float TIMON_MAX = glm::radians(8.0f);
+const float TIMON_MAX = glm::radians(10.0f);
 
 const float K_PHI = 0.3f; // nivelador: cuánto alerón por radián de inclinación
 const float K_P = 0.2f;   // nivelador: frena la velocidad de rolido para que no oscile
@@ -79,17 +81,23 @@ void InputHandler::update(GLFWwindow *window, float dt, const dlfdm::AircraftSta
 void InputHandler::plane_movement(GLFWwindow *window, float dt, const dlfdm::AircraftState &estado)
 {
     float rate = 0.30f; // Velocidad de movimiento del mando
+                        // teclas que cambian la direccion del avion: cualquiera reinicia la espera del nivelador
+    const bool mando_direccion = glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS ||
+                                 glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS ||
+                                 glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS ||
+                                 glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS ||
+                                 glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ||
+                                 glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS;
+    m_sin_alerones = mando_direccion ? 0.0f : m_sin_alerones + dt;
 
     // Elevador: de -1.0 a 1.0
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
     {
         m_controls.elevator += rate * dt;
-        m_sin_alerones = 0.0f;
     }
     else if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
     {
         m_controls.elevator -= rate * dt;
-        m_sin_alerones = 0.0f;
     }
     else
         m_controls.elevator = acercar(m_controls.elevator, m_trim.elevator, rate * dt); // Volvemos al trim si no hay input
@@ -110,20 +118,28 @@ void InputHandler::plane_movement(GLFWwindow *window, float dt, const dlfdm::Air
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
     {
         m_controls.aileron += rate * dt; // Ala derecha abajo (alabeo a la derecha)
-        m_sin_alerones = 0.0f;
     }
     else if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
     {
         m_controls.aileron -= rate * dt; // Alabeo a la izquierda
-        m_sin_alerones = 0.0f;
     }
     else
     {
-        m_sin_alerones += dt;
-        if (m_sin_alerones > m_espera_nivelar)
-            m_controls.aileron = -K_PHI * estado.phi - K_P * estado.body_omega.x; // Nivelador
-        else
-            m_controls.aileron = acercar(m_controls.aileron, m_trim.aileron, rate * dt); // Alerón a neutro, mantiene la inclinación
+        const bool pedal = std::fabs(m_pedal - m_trim.rudder) > glm::radians(0.5f); // timon todavia deflectado
+        const float phi = remainder(estado.phi, 2.0f * glm::pi<float>());           // [-pi, pi]
+        const float PHI_PEDAL = glm::radians(20.0f);                                // alabeo maximo con solo timon
+
+        if (pedal && !m_pedal_activo) // recien empieza a pisar: el tope respeta la inclinacion que ya tenia
+            m_tope_pedal = std::max(PHI_PEDAL, std::fabs(phi));
+        m_pedal_activo = pedal;
+
+        // los modos automaticos fijan un objetivo y el aleron llega con acercar: sin saltos al cambiar de modo
+        if (pedal) // solo timon: frena el rolido del diedro y topa el alabeo
+            m_controls.aileron = acercar(m_controls.aileron, -0.4f * estado.body_omega.x - 1.0f * (phi - clamp(phi, -m_tope_pedal, m_tope_pedal)), 2.0f * rate * dt);
+        else if (m_sin_alerones > m_espera_nivelar) // nivelador
+            m_controls.aileron = acercar(m_controls.aileron, -K_PHI * phi - K_P * estado.body_omega.x, 2.0f * rate * dt);
+        else // aleron a neutro, mantiene la inclinacion
+            m_controls.aileron = acercar(m_controls.aileron, m_trim.aileron, rate * dt);
     }
 
     m_controls.aileron = clamp(m_controls.aileron, -ALERON_MAX, ALERON_MAX);

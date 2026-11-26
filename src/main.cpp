@@ -21,6 +21,9 @@
 #include "Utils/Alturas.h"
 #include "Texture/texture.h"
 #include <array>
+#include "Scene/Circuito/Circuito.h"
+#include "Hud/Hud.h"
+#include <cstdio>
 
 using glm::inverse;
 using glm::mat3;
@@ -38,8 +41,8 @@ using std::string;
 using std::vector;
 
 static const char *kWindowTitle = "OpenGL - Primitiva Cubo";
-static constexpr int kWindowWidth = 800;
-static constexpr int kWindowHeight = 600;
+static constexpr int kWindowWidth = 1920;
+static constexpr int kWindowHeight = 1080;
 static constexpr int kGLVerMajor = 4;
 static constexpr int kGLVerMinor = 6;
 
@@ -70,6 +73,10 @@ int main()
 	Aircraft aircraft;
 	aircraft.init();
 	vector<RenderItem> items;
+
+	// Circuito
+	Circuito circuito;
+	circuito.init();
 
 	// -- TERRENO --
 	Alturas alturas(1337, 0.01f, 800.0f);
@@ -115,6 +122,8 @@ int main()
 	tex_cielo.load_cubemap(caras);
 	Mesh cubo_fondo;
 	cubo_fondo.load(primitives::cube(1.0f));
+	Mesh aro;
+	aro.load(primitives::torus(30.0f, 2.0f, 48, 12));
 
 	// -- CÁMARA --
 	CameraSystem camera_system(kWindowWidth, kWindowHeight);
@@ -144,6 +153,17 @@ int main()
 	float last_frame_time = static_cast<float>(glfwGetTime());
 	double acc = 0.0;
 	mat4 model_terreno = translate(mat4(1.0f), vec3(-medio_ancho, altura_terreno, -medio_ancho));
+	const ShaderSource &hud_source = resource_shaders_manager.load_shader_source("hud", "hud.vert", "hud.frag");
+	Shader shader_hud;
+	if (!shader_hud.compile_from_source(hud_source.vs, hud_source.fs))
+		fatal_error("HUD shader compilation failed!", ctx.window);
+	Hud hud;
+	hud.init();
+	const ShaderSource &final_source = resource_shaders_manager.load_shader_source("bandera", "bandera.vert", "bandera.frag");
+	Shader shader_bandera;
+	if (!shader_bandera.compile_from_source(final_source.vs, final_source.fs))
+		fatal_error("Bandera shader compilation failed!", ctx.window);
+
 	// loop
 	while (!glfwWindowShouldClose(ctx.window))
 	{
@@ -157,11 +177,11 @@ int main()
 		{
 			const dlfdm::AircraftState &s = fdm.getState();
 			cout << "V: " << (int)glm::length(s.body_velocity) << " m/s"
-			     << "  Alt: " << (int)-s.inertial_position.z << " m"
-			     << "  Pot: " << (int)(input_handler.controls().throttle * 100) << "%" << endl;
+				 << "  Alt: " << (int)-s.inertial_position.z << " m"
+				 << "  Pot: " << (int)(input_handler.controls().throttle * 100) << "%" << endl;
 			proximo_print = current_frame_time + 0.5;
 		}
-		
+
 		CameraCommand cmd = input_handler.camera_cmd();
 
 		// acumulamso tope de tiempo
@@ -176,6 +196,7 @@ int main()
 		// --- APLICAR LA FÍSICA A LA ESCENA ---
 		FlightData datos_vuelo = to_world(fdm.getState());
 		posicion = datos_vuelo.position;
+		circuito.update(posicion, current_frame_time);
 		angulos = vec3(datos_vuelo.phi, datos_vuelo.theta, datos_vuelo.psi);
 		// -------------------------------------
 
@@ -218,11 +239,13 @@ int main()
 		tex_suelo.bind(0);
 
 		Material mat_terreno{glm::vec3(1.0f), glm::vec3(0.0f), 1.0f};
+		Material mat_aro{vec3(1.0f, 0.6f, 0.0f), vec3(0.3f), 16.0f};
 		draw(shader_terreno, terreno_mesh, model_terreno, mat_terreno); // (E)
 
 		items.clear();
 		aircraft.update(posicion, angulos);
 		aircraft.collect(items);
+		circuito.collect(items);
 
 		for (const RenderItem &item : items)
 		{
@@ -238,6 +261,67 @@ int main()
 			}
 		}
 
+		mat4 model_bandera;
+		if (const Mesh *bandera = circuito.bandera(model_bandera))
+		{
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // color = a*nuevo + (1-a)*lo que habia
+			glDepthMask(GL_FALSE);							   // se prueba contra la profundidad pero no la escribe
+			glDisable(GL_CULL_FACE);						   // visible de los dos lados
+
+			shader_bandera.use();
+			shader_bandera.set_uniform("uView", camera_system.data().view);
+			shader_bandera.set_uniform("uProjection", camera_system.data().projection);
+			shader_bandera.set_uniform("uModel", model_bandera);
+			shader_bandera.set_uniform("uCuadros", 8.0f);
+			shader_bandera.set_uniform("uAlfa", 0.5f);
+			glBindVertexArray(bandera->vao());
+			glDrawElements(GL_TRIANGLES, bandera->count(), GL_UNSIGNED_INT, nullptr);
+
+			glEnable(GL_CULL_FACE);
+			glDepthMask(GL_TRUE);
+			glDisable(GL_BLEND);
+		}
+		int fb_w, fb_h;
+		glfwGetFramebufferSize(ctx.window, &fb_w, &fb_h);
+		const double t = circuito.tiempo(current_frame_time);
+		const dlfdm::AircraftState &s = fdm.getState();
+		const float vel = glm::length(s.body_velocity);
+		char texto[128];
+		char nav[48] = "";
+		if (const Aro *aro = circuito.proximo())
+		{
+			const vec3 d = aro->centro - posicion;
+			const float rumbo_aro = atan2(d.x, -d.z);												// misma convencion que Aro::rumbo: 0 = -Z, 90 = +X
+			const float giro = glm::degrees(remainder(rumbo_aro - s.psi, 2.0f * glm::pi<float>())); // + = a la derecha
+			if (fabs(giro) < 5.0f)
+				snprintf(nav, sizeof(nav), "Prox: %.0f m  ^", glm::length(d));
+			else if (giro > 0.0f)
+				snprintf(nav, sizeof(nav), "Prox: %.0f m  %.0f >>", glm::length(d), giro);
+			else
+				snprintf(nav, sizeof(nav), "Prox: %.0f m  << %.0f", glm::length(d), -giro);
+		}
+		if (circuito.pasados() == 0)
+			snprintf(texto, sizeof(texto), "Aro 0/%zu\nPasa por el primer aro\n%s", circuito.total(), nav);
+		else
+			snprintf(texto, sizeof(texto), "Aro %zu/%zu\n%s: %.2f s\n%s", circuito.pasados(), circuito.total(),
+					 circuito.terminado() ? "Completado" : "Tiempo", t, nav);
+
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+		hud.draw(shader_hud, texto, 20.0f, 20.0f, 3.0f, vec3(1.0f), fb_w, fb_h);
+		const float pot = input_handler.controls().throttle * 100.0f;
+		const float alt = -s.inertial_position.z - altura_terreno;
+		const float vz = -fdm.get_state_dot().ned_position_dot.z; // NED: z hacia abajo
+		const float beta = glm::degrees(asin(glm::clamp(s.body_velocity.y / glm::max(vel, 1.0f), -1.0f, 1.0f)));
+
+		char vuelo[160];
+		snprintf(vuelo, sizeof(vuelo), "Vel: %.0f m/s\nPot: %.0f %%\nAlt: %.0f m\nVz: %+.1f m/s\nDerrape: %+.1f",
+				 vel, pot, alt, vz, beta);
+		hud.draw(shader_hud, vuelo, 20.0f, 150.0f, 3.0f, vec3(1.0f), fb_w, fb_h);
+
+		glEnable(GL_CULL_FACE);
+		glEnable(GL_DEPTH_TEST);
 		glfwSwapBuffers(ctx.window);
 		glfwPollEvents();
 	}

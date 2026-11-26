@@ -27,8 +27,8 @@ INC_DIRS = \
 #    ./src/input
 LIB_DIRS = \
     $(GLAD_LIB_DIRS) \
-    ./src/ResourceManager ./src/Shader ./src/Primitives ./src/Mesh \
-    ./src/Scene/Aircraft ./src/CameraSystem ./src/Utils $(DLFDM_LIB_DIRS) \
+    ./src/ResourceManager ./src/Shader ./src/Primitives ./src/Mesh ./src/Hud \
+    ./src/Scene/Aircraft ./src/Scene/Circuito ./src/CameraSystem ./src/Utils $(DLFDM_LIB_DIRS) \
     ./src/InputHandler ./src/ObjLoader \
     ./src/Texture
 

@@ -34,6 +34,8 @@ private:
     float m_sin_alerones = 0.0f;         // [s] tiempo sin tocar las flechas izq/der
     const float m_espera_nivelar = 2.0f; // [s] cuánto espera antes de nivelar solo
 
-    // Parámetros de control del avión 
-    float m_pedal = 0.0f; //rebote de los pedales, para que no se quede en el trim
+    // Parámetros de control del avión
+    float m_pedal = 0.0f;        // rebote de los pedales, para que no se quede en el trim
+    bool m_pedal_activo = false; // el timon estaba deflectado el cuadro anterior
+    float m_tope_pedal = 0.0f;
 };
