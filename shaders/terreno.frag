@@ -17,6 +17,6 @@ void main()
     m.ns = 1.0;
 
     vec3 color = iluminar(vPosMundo, N, m);
-    color = aplicar_niebla(a_lineal(color), vPosMundo);
+    color = aplicar_niebla(color, vPosMundo);
     FragColor = vec4(a_srgb(color), 1.0);
     }

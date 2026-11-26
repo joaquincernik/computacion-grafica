@@ -1,6 +1,7 @@
 // iluminacion.glsl - codigo comun a todos los fragment shaders de la escena.
 #version 460 core
 
+uniform bool uUsarGamma;
 uniform vec3 uSolDir; // direccion HACIA el sol, en mundo, normalizada
 uniform vec3 uSolColor; // color e intensidad del sol
 uniform vec3 uAmbiente; // luz ambiente
@@ -16,8 +17,8 @@ struct Material
 };
 
 const float GAMMA = 2.2;
-vec3 a_lineal(vec3 c) { return pow(c, vec3(GAMMA)); } // color en sRGB -> lineal
-vec3 a_srgb(vec3 c) { return pow(c, vec3(1.0 / GAMMA)); } // resultado lineal -> sRGB
+vec3 a_lineal(vec3 c) { return uUsarGamma ? pow(max(c, vec3(0.0)), vec3(GAMMA)) : c; }
+vec3 a_srgb(vec3 c)   { return uUsarGamma ? pow(max(c, vec3(0.0)), vec3(1.0 / GAMMA)) : c; }
 
 // Modelo de Phong con una luz direccional. P y N en coordenadas de mundo, N normalizada.
 vec3 iluminar(vec3 P, vec3 N, Material m)
@@ -43,5 +44,5 @@ vec3 aplicar_niebla(vec3 color, vec3 P)
     {
     float d = length(P - uOjo);
     float f = 1.0 - exp(-d / uVisibilidad);
-    return mix(color, uNieblaColor, f);
+    return mix(color, a_lineal(uNieblaColor), f);
 }

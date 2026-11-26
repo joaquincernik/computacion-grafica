@@ -1,6 +1,7 @@
 #include "InputHandler.h"
 #include <algorithm>
 #include <glm/glm.hpp>
+#include <iostream>
 
 const float ELEV_RANGO = glm::radians(5.0f);
 const float ALERON_MAX = glm::radians(20.0f);
@@ -64,6 +65,15 @@ void InputHandler::update(GLFWwindow *window, float dt, const dlfdm::AircraftSta
     // --- SCROLL (ZOOM) ---
     m_cmd.dist_delta -= s_scroll_delta * m_zoomSpeed;
     s_scroll_delta = 0.0f; // Reseteamos el acumulador para el próximo cuadro
+
+    // --- TOGGLE GAMMA ---
+    bool tecla_i_actual = (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS);
+    if (tecla_i_actual && !tecla_i_previa_)
+    {
+        usar_gamma_ = !usar_gamma_;
+        std::cout << "Correccion Gamma: " << (usar_gamma_ ? "ON" : "OFF") << std::endl;
+    }
+    tecla_i_previa_ = tecla_i_actual;
 
     // --- POLLING DEL MOUSE ---
     double xpos_d, ypos_d;

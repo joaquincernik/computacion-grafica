@@ -157,11 +157,11 @@ int main()
 		{
 			const dlfdm::AircraftState &s = fdm.getState();
 			cout << "V: " << (int)glm::length(s.body_velocity) << " m/s"
-			     << "  Alt: " << (int)-s.inertial_position.z << " m"
-			     << "  Pot: " << (int)(input_handler.controls().throttle * 100) << "%" << endl;
+				 << "  Alt: " << (int)-s.inertial_position.z << " m"
+				 << "  Pot: " << (int)(input_handler.controls().throttle * 100) << "%" << endl;
 			proximo_print = current_frame_time + 0.5;
 		}
-		
+
 		CameraCommand cmd = input_handler.camera_cmd();
 
 		// acumulamso tope de tiempo
@@ -185,6 +185,8 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		const vec3 &ojo = camera_system.data().eye;
+		bool gamma_activo = input_handler.usar_gamma() ? true : false;
+
 		// -- CIELO (método a: primero, sin escribir profundidad) --
 		const mat4 vista_sin_traslacion = mat4(mat3(camera_system.data().view));
 		glDepthMask(GL_FALSE);
@@ -195,6 +197,7 @@ int main()
 		shader_fondo.set_uniform("uOjo", ojo);
 		shader_fondo.set_uniform("uAlturaSuelo", altura_terreno);
 		shader_fondo.set_uniform("uMetrosTesela", (N * step) / teselas);
+		shader_fondo.set_uniform("uUsarGamma", gamma_activo);
 		tex_cielo.bind(0); // samplerCube uCielo        (binding = 0)
 		tex_suelo.bind(1); // sampler2D   uTexturaSuelo (binding = 1)
 		glBindVertexArray(cubo_fondo.vao());
@@ -208,6 +211,7 @@ int main()
 		shader_program.set_uniform("uView", vista);
 		shader_program.set_uniform("uProjection", camera_system.data().projection);
 		shader_program.set_uniform("uOjo", ojo);
+		shader_program.set_uniform("uUsarGamma", gamma_activo);
 
 		// -- -DIBUJAR TERRENO-- -
 		shader_terreno.use();
@@ -215,6 +219,7 @@ int main()
 		shader_terreno.set_uniform("uOjo", ojo);
 		shader_terreno.set_uniform("uProjection", camera_system.data().projection); // (A)
 		shader_terreno.set_uniform("uTeselas", teselas);							// (B)
+		shader_terreno.set_uniform("uUsarGamma", gamma_activo);
 		tex_suelo.bind(0);
 
 		Material mat_terreno{glm::vec3(1.0f), glm::vec3(0.0f), 1.0f};
@@ -358,9 +363,9 @@ static void enviar_entorno(const Shader &shader, const vec3 &ojo)
 void configurar_entorno_fijo(const Shader &s)
 {
 	s.use();
-	s.set_uniform("uSolDir", glm::normalize(glm::vec3(0.4f, 1.0f, 0.3f)));
-	s.set_uniform("uSolColor", glm::vec3(1.0f, 0.98f, 0.95f));
-	s.set_uniform("uAmbiente", glm::vec3(0.25f, 0.25f, 0.30f));
-	s.set_uniform("uNieblaColor", glm::vec3(0.65f, 0.75f, 0.88f)); 
-	s.set_uniform("uVisibilidad", 8000.0f);
+	s.set_uniform("uSolDir", normalize(vec3(0.4f, 1.0f, 0.3f)));
+	s.set_uniform("uSolColor", vec3(0.80f, 0.78f, 0.75f));
+	s.set_uniform("uAmbiente", vec3(0.20f, 0.20f, 0.22f));
+	s.set_uniform("uNieblaColor", vec3(0.55f, 0.68f, 0.85f));
+	s.set_uniform("uVisibilidad", 14000.0f);
 }

@@ -29,7 +29,7 @@ void main()
         vec3 cielo = a_lineal(texture(uCielo, vDireccion).rgb);
         // Mezcla suave hacia la niebla cerca del horizonte (d.y -> 0)
         float f_horizonte = exp(-d.y * 12.0);
-        cielo = mix(cielo, uNieblaColor, f_horizonte);
+        cielo = mix(cielo, a_lineal(uNieblaColor), f_horizonte);
         FragColor = vec4(a_srgb(cielo), 1.0);
     }
 }
