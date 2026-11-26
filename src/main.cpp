@@ -151,7 +151,17 @@ int main()
 		double frame_dt = (float)(current_frame_time - last_frame_time);
 		last_frame_time = current_frame_time;
 
-		input_handler.update(ctx.window, frame_dt);
+		input_handler.update(ctx.window, frame_dt, fdm.getState());
+		static double proximo_print = 0.0;
+		if (current_frame_time >= proximo_print)
+		{
+			const dlfdm::AircraftState &s = fdm.getState();
+			cout << "V: " << (int)glm::length(s.body_velocity) << " m/s"
+			     << "  Alt: " << (int)-s.inertial_position.z << " m"
+			     << "  Pot: " << (int)(input_handler.controls().throttle * 100) << "%" << endl;
+			proximo_print = current_frame_time + 0.5;
+		}
+		
 		CameraCommand cmd = input_handler.camera_cmd();
 
 		// acumulamso tope de tiempo
@@ -169,7 +179,7 @@ int main()
 		angulos = vec3(datos_vuelo.phi, datos_vuelo.theta, datos_vuelo.psi);
 		// -------------------------------------
 
-		camera_system.update(posicion, angulos, cmd);
+		camera_system.update(posicion, angulos, cmd, static_cast<float>(frame_dt));
 
 		glClearColor(51.0f / 255.0f, 55.0f / 255.0f, 76.0f / 255.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

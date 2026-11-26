@@ -118,11 +118,12 @@ void Aircraft::collect(vector<RenderItem> &items) const
 
 void Aircraft::update(vec3 pos, vec3 angulos)
 {
-    // Mpose = T(pos) * R(roll)*R(pitch)*R(yaw) * T(-ref)
-    mat4 pose = glm::translate(mat4(1.0f), pos);                               // T(pos)
-    pose = glm::rotate(pose, glm::radians(angulos.y), vec3(0.0f, 1.0f, 0.0f)); // yaw (Y)
-    pose = glm::rotate(pose, glm::radians(angulos.x), vec3(1.0f, 0.0f, 0.0f)); // pitch (X)
-    pose = glm::rotate(pose, glm::radians(angulos.z), vec3(0.0f, 0.0f, 1.0f)); // roll (Z)
+    // angulos = (phi, theta, psi) en radianes, ya en ejes OpenGL (ver to_world)
+    // Mpose = T(pos) * R(yaw)*R(pitch)*R(roll) * T(-ref)
+    mat4 pose = glm::translate(mat4(1.0f), pos);                  // T(pos)
+    pose = glm::rotate(pose, angulos.z, vec3(0.0f, 1.0f, 0.0f)); // yaw   psi   (Y)
+    pose = glm::rotate(pose, angulos.y, vec3(1.0f, 0.0f, 0.0f)); // pitch theta (X)
+    pose = glm::rotate(pose, angulos.x, vec3(0.0f, 0.0f, 1.0f)); // roll  phi   (Z)
     pose = glm::translate(pose, -reference_point_);                            // T(-ref)
     pose_ = pose;
 }
