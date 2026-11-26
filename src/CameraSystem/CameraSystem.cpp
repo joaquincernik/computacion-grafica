@@ -86,7 +86,7 @@ void CameraSystem::set_viewport(int width, int height)
     if (height > 0) // evita dividir por cero si minimizas la ventana
     {
         aspecto_ = (float)width / height;
-        data_.projection = perspective(fov_, aspecto_, 0.1f, 10000.0f);
+        data_.projection = perspective(fov_, aspecto_, 0.1f, 30000.0f);
     }
 }
 void CameraSystem::cine(vec3 pos_avion, vec3 adelante, float dt)

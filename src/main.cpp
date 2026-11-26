@@ -82,7 +82,7 @@ int main()
 
 	// -- TERRENO --
 	Alturas alturas(1337, 0.01f, 800.0f);
-	int N = 400;
+	int N = 800;
 	float step = 50.0f;											   // 400 * 50.0m = 20.000m (20 km de extensión)
 	float anchoTotal = N * step;								   // semilla, frecuencia, amplitud[cite: 2]
 	MeshData terreno_data = primitives::terreno(N, step, alturas); // N=200, step=25.0m
@@ -148,17 +148,17 @@ int main()
 
 	// -- PARAMETROS DE ESCENA --
 	const float altura_terreno = 3500.0f;
-	const float teselas = 400.0f;
+	const float metros_por_tesela = 50.0f;
+	const float teselas = anchoTotal / metros_por_tesela;
 	float medio_ancho = (N * step) / 2.0f; // (D)
 
 	const double dt = 1.0 / 120.0;
 	float last_frame_time = static_cast<float>(glfwGetTime());
 	double acc = 0.0;
-	
+
 	mat4 model_terreno = translate(mat4(1.0f), vec3(-medio_ancho, altura_terreno, -medio_ancho));
 	Material mat_terreno{vec3(1.0f), vec3(0.0f), 1.0f};
-	
-	
+
 	const ShaderSource &hud_source = resource_shaders_manager.load_shader_source("hud", "hud.vert", "hud.frag");
 	Shader shader_hud;
 	if (!shader_hud.compile_from_source(hud_source.vs, hud_source.fs))
@@ -215,10 +215,9 @@ int main()
 		bool gamma_activo = input_handler.usar_gamma() ? true : false;
 
 		EntornoSolar env = calcular_entorno_solar(current_frame_time);
-		enviar_entorno_solar(shader_fondo,env);
-		enviar_entorno_solar(shader_program,env);
-		enviar_entorno_solar(shader_terreno,env);
-
+		enviar_entorno_solar(shader_fondo, env);
+		enviar_entorno_solar(shader_program, env);
+		enviar_entorno_solar(shader_terreno, env);
 
 		// -- CIELO (método a: primero, sin escribir profundidad) --
 		const mat4 vista_sin_traslacion = mat4(mat3(camera_system.data().view));
@@ -464,11 +463,12 @@ void configurar_entorno_fijo(const Shader &s)
 	s.set_uniform("uNieblaColor", vec3(0.55f, 0.68f, 0.85f));
 	s.set_uniform("uVisibilidad", 8000.0f);
 }
-void enviar_entorno_solar(const Shader &s, const EntornoSolar &env) {
-    s.use();
-    s.set_uniform("uSolDir", env.sol_dir);
-    s.set_uniform("uSolColor", env.sol_color);
-    s.set_uniform("uAmbiente", env.ambiente);
-    s.set_uniform("uNieblaColor", env.niebla_color);
-    s.set_uniform("uFactorCielo", env.factor_cielo);
+void enviar_entorno_solar(const Shader &s, const EntornoSolar &env)
+{
+	s.use();
+	s.set_uniform("uSolDir", env.sol_dir);
+	s.set_uniform("uSolColor", env.sol_color);
+	s.set_uniform("uAmbiente", env.ambiente);
+	s.set_uniform("uNieblaColor", env.niebla_color);
+	s.set_uniform("uFactorCielo", env.factor_cielo);
 }

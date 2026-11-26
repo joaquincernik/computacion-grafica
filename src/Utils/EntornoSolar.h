@@ -16,7 +16,7 @@ struct EntornoSolar
 inline EntornoSolar calcular_entorno_solar(double tiempo)
 {
     // Ciclo completo cada 60 segundos (ajustable para probar rápido, ej: 20.0f)
-    const float duracion_dia = 12.0f;
+    const float duracion_dia = 60.0f;
     float angulo = static_cast<float>(tiempo) * (glm::two_pi<float>() / duracion_dia);
 
     // El sol gira en el plano XY (sale en +X, cenit en +Y, se pone en -X)
