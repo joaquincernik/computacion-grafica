@@ -363,9 +363,9 @@ static void enviar_entorno(const Shader &shader, const vec3 &ojo)
 void configurar_entorno_fijo(const Shader &s)
 {
 	s.use();
-	s.set_uniform("uSolDir", normalize(vec3(0.4f, 1.0f, 0.3f)));
+	s.set_uniform("uSolDir", normalize(vec3(-0.7f, 0.65f, -0.3f)));
 	s.set_uniform("uSolColor", vec3(0.80f, 0.78f, 0.75f));
 	s.set_uniform("uAmbiente", vec3(0.20f, 0.20f, 0.22f));
 	s.set_uniform("uNieblaColor", vec3(0.55f, 0.68f, 0.85f));
-	s.set_uniform("uVisibilidad", 14000.0f);
+	s.set_uniform("uVisibilidad", 8000.0f);
 }
