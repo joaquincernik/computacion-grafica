@@ -15,6 +15,8 @@ void Aircraft::init(const Texture *textura)
     locales_.clear();
     colores_.clear();
     texturas_.clear();
+    materiales_.clear();
+
     reference_point_ = glm::vec3(0.0f, 0.0f, 1.1f);
     const float radio_fuselaje = 0.2f;
     const float largo_fuselaje = 2.0f;
@@ -38,6 +40,7 @@ void Aircraft::init(const Texture *textura)
     local_nariz = glm::rotate(local_nariz, glm::radians(-90.0f), eje_x);
     locales_.push_back(local_nariz);
     colores_.push_back(Colors::get("red"));
+    materiales_.push_back(Material{ vec3(Colors::get("red")), vec3(0.55f), 64.0f });
     texturas_.push_back(textura);
 
     // 2 - FUSELAJE
@@ -45,32 +48,41 @@ void Aircraft::init(const Texture *textura)
     local_fuselaje = glm::rotate(local_fuselaje, glm::radians(90.0f), eje_x);
     locales_.push_back(local_fuselaje);
     colores_.push_back(Colors::get("gray"));
+    materiales_.push_back(Material{ vec3(Colors::get("gray")), vec3(0.45f), 48.0f });
     texturas_.push_back(textura);
 
     // --- 3. CUBO reutilizado para alas y cola ---
+    Material mat_ala{ vec3(Colors::get("green")), vec3(0.25f), 24.0f };
+
     mat4 local_ala_izq = glm::translate(mat4(1.0f), vec3(posicion_ala_izq, -0.12f, 1.0f));
     local_ala_izq = glm::scale(local_ala_izq, dimensiones_ala);
     locales_.push_back(local_ala_izq);
     colores_.push_back(Colors::get("green"));
+    materiales_.push_back(mat_ala);
     texturas_.push_back(textura);
 
     mat4 local_ala_der = glm::translate(mat4(1.0f), vec3(-posicion_ala_izq, -0.12f, 1.0f));
     local_ala_der = glm::scale(local_ala_der, dimensiones_ala);
     locales_.push_back(local_ala_der);
     colores_.push_back(Colors::get("green"));
+    materiales_.push_back(mat_ala);
     texturas_.push_back(textura);
 
     // aletas
+    Material mat_cola{ vec3(Colors::get("blue")), vec3(0.25f), 24.0f };
+
     mat4 local_aleta_izq = glm::translate(mat4(1.0f), vec3(-posicion_aleta_izq, 0.0f, final_z));
     local_aleta_izq = glm::scale(local_aleta_izq, dimensiones_aleta);
     locales_.push_back(local_aleta_izq);
     colores_.push_back(Colors::get("blue"));
+    materiales_.push_back(mat_cola);
     texturas_.push_back(textura);
 
     mat4 local_aleta_der = glm::translate(mat4(1.0f), vec3(posicion_aleta_izq, 0.0f, final_z));
     local_aleta_der = glm::scale(local_aleta_der, dimensiones_aleta);
     locales_.push_back(local_aleta_der);
     colores_.push_back(Colors::get("blue"));
+    materiales_.push_back(mat_cola);
     texturas_.push_back(textura);
 
     // Timon vertical
@@ -78,6 +90,7 @@ void Aircraft::init(const Texture *textura)
     local_timon = glm::scale(local_timon, vec3(0.05f, 0.7f, 0.35f));
     locales_.push_back(local_timon);
     colores_.push_back(Colors::get("blue"));
+    materiales_.push_back(mat_cola);
     texturas_.push_back(textura);
 }
 
@@ -96,6 +109,7 @@ void Aircraft::collect(vector<RenderItem> &items) const
         RenderItem item;
         item.model = pose_ * locales_[i];
         item.color = colores_[i];
+        item.material = materiales_[i];
         item.texture = texturas_[i];
         item.mesh = &piezas_[mapa_mallas[i]];
         items.push_back(item);
