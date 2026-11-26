@@ -272,6 +272,7 @@ int main()
 			}
 			else
 			{
+				tex_cielo.bind(0);
 				draw(shader_program, *item.mesh, item.model, item.material);
 			}
 		}
