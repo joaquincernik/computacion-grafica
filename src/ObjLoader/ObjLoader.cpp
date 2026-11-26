@@ -23,6 +23,13 @@ static int resolver_indice(const string &campo, size_t cantidad)
     return (i >= 0 && static_cast<size_t>(i) < cantidad) ? i : -1;
 }
 
+struct ImageData {
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    std::vector<unsigned char> pixels;
+};
+
 MeshData load_obj(const string &path, const vector<string> &ignorar)
 {
     MeshData data;

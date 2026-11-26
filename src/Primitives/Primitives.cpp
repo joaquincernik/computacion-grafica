@@ -109,6 +109,46 @@ namespace primitives
 
         return data;
     }
+    MeshData torus(float radio_mayor, float radio_tubo, unsigned gajos_aro, unsigned gajos_tubo)
+    {
+        MeshData data;
+        const float PI = glm::pi<float>();
+
+        // reserva de memoria
+        const unsigned s = gajos_tubo + 1; // vertices por vuelta del tubo
+        data.vertices.reserve((gajos_aro + 1) * s);
+        data.indices.reserve(gajos_aro * gajos_tubo * 6);
+
+        // generacion por vertices: u recorre el aro, v recorre el tubo
+        for (unsigned i = 0; i <= gajos_aro; ++i)
+        {
+            const float u = 2.0f * PI * float(i) / float(gajos_aro);
+            for (unsigned j = 0; j <= gajos_tubo; ++j)
+            {
+                const float v = 2.0f * PI * float(j) / float(gajos_tubo);
+                const float d = radio_mayor + radio_tubo * cos(v); // distancia al eje Z
+                Vertex vert;
+                vert.position = {d * cos(u), d * sin(u), radio_tubo * sin(v)};
+                vert.normal = {cos(v) * cos(u), cos(v) * sin(u), sin(v)};
+                vert.tex_coords = {float(i) / float(gajos_aro), float(j) / float(gajos_tubo)};
+                data.vertices.push_back(vert);
+            }
+        }
+
+        // indices: dos triangulos por celda, antihorario visto desde afuera
+        for (unsigned i = 0; i < gajos_aro; ++i)
+        {
+            for (unsigned j = 0; j < gajos_tubo; ++j)
+            {
+                const unsigned a = i * s + j, b = (i + 1) * s + j;
+                const unsigned c = (i + 1) * s + j + 1, d = i * s + j + 1;
+                data.indices.insert(data.indices.end(), {a, b, c});
+                data.indices.insert(data.indices.end(), {a, c, d});
+            }
+        }
+
+        return data;
+    }
 
     MeshData cone(float radio, float conicidad, unsigned gajos, unsigned anillos)
     {
@@ -221,7 +261,7 @@ namespace primitives
                 float df_dx = (get_h(i, j - 1) - get_h(i, j + 1)) / (2.0f * step);
                 float df_dz = (get_h(i - 1, j) - get_h(i + 1, j)) / (2.0f * step);
                 v.normal = glm::normalize(glm::vec3(df_dx, 1.0f, df_dz));
-                
+
                 v.tex_coords = {static_cast<float>(j) / N, static_cast<float>(i) / N}; // Coordenadas de textura
                 data.vertices.push_back(v);
             }
