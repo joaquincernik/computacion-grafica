@@ -57,6 +57,10 @@ void InputHandler::update(GLFWwindow *window, float dt, const dlfdm::AircraftSta
 
     m_cmd = CameraCommand{};
 
+    const bool v = glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS;
+    m_cmd.cambiar_modo = v && !m_v_antes;
+    m_v_antes = v;
+    
     // --- EXIT ---
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);

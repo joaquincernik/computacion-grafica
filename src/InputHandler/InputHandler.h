@@ -14,7 +14,7 @@ public:
     void set_controls(const dlfdm::ControlInputs &c);
     CameraCommand camera_cmd() const; // del Practico 05
     bool usar_gamma() const { return usar_gamma_; }
-
+    bool m_v_antes = false; // V estaba apretada el cuadro anterior
 
 private:
     CameraCommand m_cmd{};
@@ -36,11 +36,9 @@ private:
     float m_sin_alerones = 0.0f;         // [s] tiempo sin tocar las flechas izq/der
     const float m_espera_nivelar = 2.0f; // [s] cuánto espera antes de nivelar solo
 
-
     // iluminacion gamma
     bool usar_gamma_ = true;
     bool tecla_i_previa_ = false;
-
 
     float m_pedal = 0.0f;        // rebote de los pedales, para que no se quede en el trim
     bool m_pedal_activo = false; // el timon estaba deflectado el cuadro anterior
