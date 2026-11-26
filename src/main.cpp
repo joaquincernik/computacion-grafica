@@ -351,6 +351,6 @@ void configurar_entorno_fijo(const Shader &s)
 	s.set_uniform("uSolDir", glm::normalize(glm::vec3(0.4f, 1.0f, 0.3f)));
 	s.set_uniform("uSolColor", glm::vec3(1.0f, 0.98f, 0.95f));
 	s.set_uniform("uAmbiente", glm::vec3(0.25f, 0.25f, 0.30f));
-	s.set_uniform("uNieblaColor", glm::vec3(0.65f, 0.75f, 0.88f));
+	s.set_uniform("uNieblaColor", pow(glm::vec3(0.65f, 0.75f, 0.88f), vec3(2.2f))); // color del horizonte lineal
 	s.set_uniform("uVisibilidad", 8000.0f);
 }

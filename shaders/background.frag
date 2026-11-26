@@ -18,18 +18,18 @@ void main()
         vec3 P = uOjo + t * d; // uOjo.y + t d.y = uAlturaSuelo -> t = (uOjo.y - uAlturaSuelo) / (-d.y)
 
         Material m;
-        m.kd = (texture(uTexturaSuelo, P.xz / uMetrosTesela)).rgb;
+        m.kd = a_lineal(texture(uTexturaSuelo, P.xz / uMetrosTesela).rgb);
         m.ks = vec3(0.0);
         m.ns = 1.0;
 
         vec3 color = iluminar(P, vec3(0.0, 1.0, 0.0), m);
         color = aplicar_niebla(color, P);
-        FragColor = vec4(color, 1.0);
+        FragColor = vec4(a_srgb(color), 1.0);
     } else {
-        vec3 cielo = (texture(uCielo, vDireccion)).rgb;
+        vec3 cielo = a_lineal(texture(uCielo, vDireccion).rgb);
         // Mezcla suave hacia la niebla cerca del horizonte (d.y -> 0)
         float f_horizonte = exp(-d.y * 12.0);
         cielo = mix(cielo, uNieblaColor, f_horizonte);
-        FragColor = vec4(cielo, 1.0);
+        FragColor = vec4(a_srgb(cielo), 1.0);
     }
 }

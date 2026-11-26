@@ -12,11 +12,11 @@ void main()
 {
     vec3 N = normalize(vNormal); // interpolada: hay que volver a normalizar
     Material m;
-    m.kd = texture(uTextura, vTexCoord).rgb; // en el Practico 08 era el color final
+    m.kd = a_lineal(texture(uTextura, vTexCoord).rgb); // la textura esta en sRGB
     m.ks = vec3(0.0); // sin brillo especular
     m.ns = 1.0;
 
     vec3 color = iluminar(vPosMundo, N, m);
     color = aplicar_niebla(color, vPosMundo);
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(a_srgb(color), 1.0);
     }
