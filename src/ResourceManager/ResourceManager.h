@@ -28,7 +28,8 @@ public:
     const ShaderSource &load_shader_source(const std::string &key,
                                            const std::string &vs_file,
                                            const std::string &fs_file,
-                                           const std::string &gs_file = ""); // lee los archovos y los asocia a un id key. devuelve una referencia constante
+                                           const std::string &gs_file = "",
+                                        const std::string& common_fs_file = ""); //esto para imcluir la ilumniacion al shader); // lee los archovos y los asocia a un id key. devuelve una referencia constante
     const ShaderSource &get_shader_source(const std::string &key) const;     // referebcia al shader usando su ley
     void clear(void);
 

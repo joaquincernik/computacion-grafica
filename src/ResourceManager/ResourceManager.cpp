@@ -54,7 +54,8 @@ string ResourceManager::read_shader_file(const string& shader_file,
 const ShaderSource& ResourceManager::load_shader_source(const string& key,
                                                          const string& vs_file,
                                                          const string& fs_file,
-                                                         const string& gs_file) {
+                                                         const string& gs_file,
+                                                         const string& common_fs_file) {
     // CACHÉ: Si el recurso ya se cargó con esa clave, no vuelve a leer de disco
     auto it = shaders_sources_.find(key); //auto significa qeu deduzca el valor de la variable dependiendo de lo que se le asigna
     if (it != shaders_sources_.end()) {
@@ -65,7 +66,14 @@ const ShaderSource& ResourceManager::load_shader_source(const string& key,
     // 2. Si es la primera vez, leemos los archivos del disco
     ShaderSource source;
     source.vs = read_shader_file(vs_file, "VERTEX");
-    source.fs = read_shader_file(fs_file, "FRAGMENT");
+    string fs_code = read_shader_file(fs_file, "FRAGMENT");
+
+    if (!common_fs_file.empty()) {
+        string common_code = read_shader_file(common_fs_file, "FRAGMENT_COMMON");
+        source.fs = common_code + "\n" + fs_code;
+    } else {
+        source.fs = fs_code;
+    }
     
     if (!gs_file.empty()) {
         source.gs = read_shader_file(gs_file, "GEOMETRY");

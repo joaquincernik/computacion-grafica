@@ -1,8 +1,22 @@
-#version 460 core
+//#version 460 core
+
+in vec3 vPosMundo;
+in vec3 vNormal;
 in vec2 vTexCoord;
+
 layout (binding = 0) uniform sampler2D uTextura; // unidad 0
+
 out vec4 FragColor;
+
 void main()
 {
-    FragColor = texture(uTextura, vTexCoord); // REEMPLAZA el color
-}
+    vec3 N = normalize(vNormal); // interpolada: hay que volver a normalizar
+    Material m;
+    m.kd = a_lineal(texture(uTextura, vTexCoord).rgb); // la textura esta en sRGB
+    m.ks = vec3(0.0); // sin brillo especular
+    m.ns = 1.0;
+
+    vec3 color = iluminar(vPosMundo, N, m);
+    color = aplicar_niebla(color, vPosMundo);
+    FragColor = vec4(a_srgb(color), 1.0);
+    }

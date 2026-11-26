@@ -165,11 +165,14 @@ void Shader::set_uniform(const std::string &nombre, const glm::vec3 &v) const
     glProgramUniform3fv(id_, loc, 1, &v[0]); // DSA
 }
 
-// necesario para las texturas, necesita flotantes
-void Shader::set_uniform(const std::string &nombre, float f) const
+void Shader::set_uniform(const std::string &nombre, float value) const
 {
-    const int loc = glGetUniformLocation(id_, nombre.c_str());
-    glProgramUniform1f(id_, loc, f); // DSA
+    glProgramUniform1f(id_, glGetUniformLocation(id_, nombre.c_str()), value);
+}
+
+void Shader::set_uniform(const std::string &nombre, const glm::mat3 &m) const
+{
+    glProgramUniformMatrix3fv(id_, glGetUniformLocation(id_, nombre.c_str()), 1, GL_FALSE, &m[0][0]);
 }
 
 // PRIVADOS
