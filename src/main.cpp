@@ -23,6 +23,7 @@
 #include <array>
 #include "Scene/Circuito/Circuito.h"
 #include "Hud/Hud.h"
+#include "Utils/EntornoSolar.h"
 #include <cstdio>
 
 using glm::inverse;
@@ -56,6 +57,7 @@ static void enable_fill_mode();
 static array<const ImageData *, 6> cargar_caras_cubemap(ResourceManager &rm, const string &directorio, const string &prefijo_clave = "cielo", const string &extension = ".png");
 // static void enviar_entorno(const Shader &shader, const glm::vec3 &ojo);
 static void configurar_entorno_fijo(const Shader &s);
+static void enviar_entorno_solar(const Shader &s, const EntornoSolar &env);
 
 int main()
 {
@@ -211,6 +213,12 @@ int main()
 
 		const vec3 &ojo = camera_system.data().eye;
 		bool gamma_activo = input_handler.usar_gamma() ? true : false;
+
+		EntornoSolar env = calcular_entorno_solar(current_frame_time);
+		enviar_entorno_solar(shader_fondo,env);
+		enviar_entorno_solar(shader_program,env);
+		enviar_entorno_solar(shader_terreno,env);
+
 
 		// -- CIELO (método a: primero, sin escribir profundidad) --
 		const mat4 vista_sin_traslacion = mat4(mat3(camera_system.data().view));
@@ -455,4 +463,12 @@ void configurar_entorno_fijo(const Shader &s)
 	s.set_uniform("uAmbiente", vec3(0.20f, 0.20f, 0.22f));
 	s.set_uniform("uNieblaColor", vec3(0.55f, 0.68f, 0.85f));
 	s.set_uniform("uVisibilidad", 8000.0f);
+}
+void enviar_entorno_solar(const Shader &s, const EntornoSolar &env) {
+    s.use();
+    s.set_uniform("uSolDir", env.sol_dir);
+    s.set_uniform("uSolColor", env.sol_color);
+    s.set_uniform("uAmbiente", env.ambiente);
+    s.set_uniform("uNieblaColor", env.niebla_color);
+    s.set_uniform("uFactorCielo", env.factor_cielo);
 }

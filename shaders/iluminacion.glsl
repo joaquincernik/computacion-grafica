@@ -1,6 +1,7 @@
 // iluminacion.glsl - codigo comun a todos los fragment shaders de la escena.
 #version 460 core
 
+uniform float uFactorCielo;
 uniform bool uUsarGamma;
 uniform vec3 uSolDir; // direccion HACIA el sol, en mundo, normalizada
 uniform vec3 uSolColor; // color e intensidad del sol
