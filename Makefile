@@ -29,7 +29,7 @@ LIB_DIRS = \
     $(GLAD_LIB_DIRS) \
     ./src/ResourceManager ./src/Shader ./src/Primitives ./src/Mesh ./src/Hud \
     ./src/Scene/Aircraft ./src/Scene/Circuito ./src/CameraSystem ./src/Utils $(DLFDM_LIB_DIRS) \
-    ./src/InputHandler ./src/ObjLoader \
+    ./src/InputHandler ./src/ObjLoader ./src/ModelLoader \
     ./src/Texture
 
 # ------------------------------------------------------------------------------
@@ -46,9 +46,9 @@ PROJECT_NAME = ogl-app
 # ------------------------------------------------------------------------------
 # Configurar linkeo de librerías
 ifeq ($(OS), Windows_NT)
-        PROJECT_LDLIBS = -L/mingw64/lib -lglfw3 -lopengl32 -lgdi32 -lpthread
+        PROJECT_LDLIBS = -L/mingw64/lib -lglfw3 -lopengl32 -lgdi32 -lpthread -lassimp
 else
-	PROJECT_LDLIBS = -lglfw -lGL -lX11 -lXrandr -ldl -lpthread
+	PROJECT_LDLIBS = -lglfw -lGL -lX11 -lXrandr -ldl -lpthread -lassimp
 endif
 
 # ------------------------------------------------------------------------------

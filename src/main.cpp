@@ -71,7 +71,7 @@ int main()
 
 	// -- AERONAVE --
 	Aircraft aircraft;
-	aircraft.init();
+	aircraft.init("src/asssets/f16/f16.ac");
 	vector<RenderItem> items;
 
 	// Circuito

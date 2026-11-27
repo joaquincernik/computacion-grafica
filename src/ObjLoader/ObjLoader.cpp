@@ -6,7 +6,7 @@
 #include <sstream>
 #include <vector>
 #include <glm/glm.hpp>
-
+#include <map>
 using glm::vec2;
 using glm::vec3;
 using std::string;
@@ -23,27 +23,21 @@ static int resolver_indice(const string &campo, size_t cantidad)
     return (i >= 0 && static_cast<size_t>(i) < cantidad) ? i : -1;
 }
 
-struct ImageData {
-    int width = 0;
-    int height = 0;
-    int channels = 0;
-    std::vector<unsigned char> pixels;
-};
-
-MeshData load_obj(const string &path, const vector<string> &ignorar)
+std::map<string, MeshData> load_obj(const string &path, const vector<string> &ignorar)
 {
-    MeshData data;
+    std::map<string, MeshData> grupos;
     std::ifstream archivo(path);
     if (!archivo.is_open())
     {
         std::cerr << "[ObjLoader ERROR] No se pudo abrir: " << path << std::endl;
-        return data;
+        return grupos;
     }
 
     vector<vec3> posiciones, normales;
     vector<vec2> uvs;
     string linea;
     bool saltear = false; // true mientras estamos dentro de un objeto a ignorar
+    string material_actual;
 
     while (std::getline(archivo, linea))
     {
@@ -79,6 +73,7 @@ MeshData load_obj(const string &path, const vector<string> &ignorar)
         {
             // Cada token es "v", "v/vt", "v//vn" o "v/vt/vn".
             vector<unsigned int> esquinas;
+            MeshData &data = grupos[material_actual];
             bool sin_normal = false;
             string token;
             while (ss >> token)
@@ -128,11 +123,16 @@ MeshData load_obj(const string &path, const vector<string> &ignorar)
                 data.indices.push_back(esquinas[k + 1]);
             }
         }
+        else if (tipo == "usemtl")
+        {
+            ss >> material_actual;
+        }
         // Resto (#, g, s, usemtl, mtllib): se ignora.
         // Ojo: v/vn/vt de objetos ignorados SI se guardan, porque los indices de las caras son globales al archivo.
     }
 
-    std::cout << "[ObjLoader] " << path << ": " << data.vertices.size() << " vertices, "
-              << data.indices.size() / 3 << " triangulos" << std::endl;
-    return data;
+    for (const auto &[nombre, data] : grupos)
+        std::cout << "[ObjLoader] " << path << " [" << nombre << "]: " << data.vertices.size()
+                  << " vertices, " << data.indices.size() / 3 << " triangulos" << std::endl;
+    return grupos;
 }
